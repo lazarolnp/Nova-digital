@@ -40,7 +40,7 @@ function ToolFields({ t }: { t?: ToolRow }) {
 export default async function AdminTools({ searchParams }: { searchParams: Flash }) {
   await requireAdmin();
   const flash = await searchParams;
-  const tools = listTools();
+  const tools = await listTools();
   return (
     <>
       <AdminHeader title="Ferramentas" active="/admin/ferramentas" {...flash} />

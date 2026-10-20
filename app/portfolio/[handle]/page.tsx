@@ -7,19 +7,19 @@ import { PublicFooter, PublicNav } from "@/components/PublicNav";
 
 export const dynamic = "force-dynamic";
 
-function owner(handle: string) {
-  return get<{ id: number; name: string; bio: string }>("SELECT id, name, bio FROM users WHERE handle = ? AND portfolio_public = 1", handle);
+async function owner(handle: string) {
+  return await get<{ id: number; name: string; bio: string }>("SELECT id, name, bio FROM users WHERE handle = ? AND portfolio_public = 1", handle);
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }): Promise<Metadata> {
-  const u = owner((await params).handle);
+  const u = await owner((await params).handle);
   return { title: u ? `Portfólio de ${u.name}` : "Portfólio", robots: { index: false } };
 }
 
 export default async function PortfolioPage({ params }: { params: Promise<{ handle: string }> }) {
-  const u = owner((await params).handle);
+  const u = await owner((await params).handle);
   if (!u) notFound();
-  const projects = all<{ id: number; name: string; category: string; description: string; objective: string; results: string; status: string; links: string; is_demo: number }>(
+  const projects = await all<{ id: number; name: string; category: string; description: string; objective: string; results: string; status: string; links: string; is_demo: number }>(
     "SELECT id, name, category, description, objective, results, status, links, is_demo FROM projects WHERE user_id = ? AND is_public = 1 ORDER BY updated_at DESC",
     u.id,
   );

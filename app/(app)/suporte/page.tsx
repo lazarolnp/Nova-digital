@@ -33,7 +33,7 @@ const STATUS = { aberto: "Aberto", respondido: "Respondido", fechado: "Fechado" 
 
 export default async function SupportPage() {
   const user = await requireOnboardedUser();
-  const tickets = all<{ id: number; category: string; message: string; status: keyof typeof STATUS; reply: string; created_at: string }>(
+  const tickets = await all<{ id: number; category: string; message: string; status: keyof typeof STATUS; reply: string; created_at: string }>(
     "SELECT id, category, message, status, reply, created_at FROM tickets WHERE user_id = ? ORDER BY id DESC LIMIT 20",
     user.id,
   );

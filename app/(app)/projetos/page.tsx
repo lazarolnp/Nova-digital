@@ -13,9 +13,9 @@ export const metadata: Metadata = { title: "Projetos e Portfólio" };
 
 export default async function ProjectsPage() {
   const user = await requireOnboardedUser();
-  const plan = planOf(user);
-  const max = limit(plan, "max_projects");
-  const projects = all<{ id: number; name: string; category: string; status: string; is_demo: number; is_public: number; steps: number; done: number }>(
+  const plan = await planOf(user);
+  const max = await limit(plan, "max_projects");
+  const projects = await all<{ id: number; name: string; category: string; status: string; is_demo: number; is_public: number; steps: number; done: number }>(
     `SELECT p.id, p.name, p.category, p.status, p.is_demo, p.is_public, COUNT(s.id) AS steps, COALESCE(SUM(s.done), 0) AS done
      FROM projects p LEFT JOIN project_steps s ON s.project_id = p.id WHERE p.user_id = ? GROUP BY p.id ORDER BY p.updated_at DESC`,
     user.id,

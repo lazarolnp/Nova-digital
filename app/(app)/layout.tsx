@@ -8,8 +8,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireOnboardedUser();
-  const plan = planOf(user);
-  const unread = unreadCount(user.id);
+  const plan = await planOf(user);
+  const unread = await unreadCount(user.id);
   return (
     <div className="shell">
       <Sidebar unread={unread} isAdmin={user.role === "admin"} />

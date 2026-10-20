@@ -11,9 +11,9 @@ export const metadata: Metadata = { title: "Cursos" };
 
 export default async function CoursesPage({ searchParams }: { searchParams: Promise<{ filtro?: string }> }) {
   const user = await requireOnboardedUser();
-  const plan = planOf(user);
+  const plan = await planOf(user);
   const { filtro } = await searchParams;
-  const all = listCourses(user.id);
+  const all = await listCourses(user.id);
   const courses = all.filter((c) =>
     filtro === "andamento" ? c.done > 0 && c.done < c.lessons : filtro === "gratuitos" ? !c.is_premium : filtro === "concluidos" ? c.lessons > 0 && c.done === c.lessons : true,
   );

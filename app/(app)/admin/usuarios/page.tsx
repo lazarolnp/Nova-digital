@@ -10,7 +10,7 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
   const me = await requireAdmin();
   const { q, ...flash } = await searchParams;
   const term = (q ?? "").trim().slice(0, 80);
-  const users = all<{ id: number; name: string; email: string; role: string; created_at: string; premium: number; until: string | null; waitlist: number; xp: number }>(
+  const users = await all<{ id: number; name: string; email: string; role: string; created_at: string; premium: number; until: string | null; waitlist: number; xp: number }>(
     `SELECT u.id, u.name, u.email, u.role, u.created_at,
        EXISTS (SELECT 1 FROM subscriptions s WHERE s.user_id = u.id AND s.status = 'active' AND (s.current_period_end IS NULL OR s.current_period_end > ?)) AS premium,
        (SELECT s.current_period_end FROM subscriptions s WHERE s.user_id = u.id AND s.status = 'active' ORDER BY s.id DESC LIMIT 1) AS until,

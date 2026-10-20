@@ -12,7 +12,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const id = intParam((await params).id);
   if (!id) notFound();
   const user = await requireOnboardedUser();
-  const project = get<{
+  const project = await get<{
     id: number;
     name: string;
     category: string;
@@ -26,7 +26,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     created_at: string;
   }>("SELECT * FROM projects WHERE id = ? AND user_id = ?", id, user.id);
   if (!project) notFound();
-  const steps = all<{ id: number; title: string; done: number }>("SELECT id, title, done FROM project_steps WHERE project_id = ? ORDER BY sort, id", id);
+  const steps = await all<{ id: number; title: string; done: number }>("SELECT id, title, done FROM project_steps WHERE project_id = ? ORDER BY sort, id", id);
   const portfolioUrl = user.portfolio_public && user.handle ? `/portfolio/${user.handle}` : null;
 
   return (

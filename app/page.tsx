@@ -12,8 +12,8 @@ const STEPS = [
   { icon: FolderKanban, title: "Monte seu portfólio", text: "Seus trabalhos viram projetos organizados que você pode apresentar." },
 ];
 
-export default function LandingPage() {
-  const trails = all<{ slug: string; title: string; subtitle: string; level_label: string }>(
+export default async function LandingPage() {
+  const trails = await all<{ slug: string; title: string; subtitle: string; level_label: string }>(
     "SELECT slug, title, subtitle, level_label FROM trails ORDER BY sort",
   );
   return (

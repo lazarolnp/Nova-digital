@@ -24,7 +24,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const user = await requireOnboardedUser();
   const { tipo } = await searchParams;
   const valid = TABS.some((t) => t.key === tipo) ? tipo : undefined;
-  const items = all<{ id: number; kind: string; title: string; body: string; link: string; read_at: string | null; created_at: string }>(
+  const items = await all<{ id: number; kind: string; title: string; body: string; link: string; read_at: string | null; created_at: string }>(
     `SELECT * FROM notifications WHERE user_id = ? ${valid ? "AND kind = ?" : ""} ORDER BY id DESC LIMIT 100`,
     ...(valid ? [user.id, valid] : [user.id]),
   );

@@ -14,13 +14,13 @@ export type PlanItem = {
   mission_slug: string | null;
 };
 
-export function currentPlan(userId: number) {
-  const plan = get<{ id: number; summary: string; weekly_goals: string; created_at: string }>(
+export async function currentPlan(userId: number) {
+  const plan = await get<{ id: number; summary: string; weekly_goals: string; created_at: string }>(
     "SELECT id, summary, weekly_goals, created_at FROM plans WHERE user_id = ? ORDER BY id DESC LIMIT 1",
     userId,
   );
   if (!plan) return null;
-  const items = all<PlanItem>(
+  const items = await all<PlanItem>(
     `SELECT pi.*, m.slug AS mission_slug FROM plan_items pi
      LEFT JOIN missions m ON pi.kind = 'missao' AND m.id = pi.ref_id
      WHERE pi.plan_id = ? ORDER BY pi.day, pi.id`,

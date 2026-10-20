@@ -10,12 +10,12 @@ export const metadata: Metadata = { title: "Admin · Cursos" };
 export default async function AdminCourses({ searchParams }: { searchParams: Flash }) {
   await requireAdmin();
   const flash = await searchParams;
-  const courses = all<{ id: number; title: string; slug: string; trail: string | null; is_premium: number; published: number; lessons: number }>(
+  const courses = await all<{ id: number; title: string; slug: string; trail: string | null; is_premium: number; published: number; lessons: number }>(
     `SELECT c.id, c.title, c.slug, t.title AS trail, c.is_premium, c.published,
        (SELECT COUNT(*) FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.course_id = c.id) AS lessons
      FROM courses c LEFT JOIN trails t ON t.id = c.trail_id ORDER BY c.sort, c.id`,
   );
-  const trails = all<{ id: number; title: string }>("SELECT id, title FROM trails ORDER BY sort");
+  const trails = await all<{ id: number; title: string }>("SELECT id, title FROM trails ORDER BY sort");
   return (
     <>
       <AdminHeader title="Cursos e aulas" active="/admin/conteudo" {...flash} />

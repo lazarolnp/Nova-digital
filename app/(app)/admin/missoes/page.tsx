@@ -10,12 +10,12 @@ export const metadata: Metadata = { title: "Admin · Missões" };
 export default async function AdminMissions({ searchParams }: { searchParams: Flash }) {
   await requireAdmin();
   const flash = await searchParams;
-  const missions = all<{ id: number; title: string; trail: string | null; is_premium: number; published: number; done: number }>(
+  const missions = await all<{ id: number; title: string; trail: string | null; is_premium: number; published: number; done: number }>(
     `SELECT m.id, m.title, t.title AS trail, m.is_premium, m.published,
        (SELECT COUNT(*) FROM mission_progress mp WHERE mp.mission_id = m.id AND mp.status = 'concluida') AS done
      FROM missions m LEFT JOIN trails t ON t.id = m.trail_id ORDER BY t.sort, m.sort, m.id`,
   );
-  const trails = all<{ id: number; title: string }>("SELECT id, title FROM trails ORDER BY sort");
+  const trails = await all<{ id: number; title: string }>("SELECT id, title FROM trails ORDER BY sort");
   return (
     <>
       <AdminHeader title="Missões" active="/admin/missoes" {...flash} />

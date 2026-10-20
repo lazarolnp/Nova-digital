@@ -10,16 +10,16 @@ import { MissionWorkspace } from "@/components/MissionWorkspace";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const user = await requireOnboardedUser();
-  return { title: getMission((await params).slug, user.id)?.mission.title ?? "Missão" };
+  return { title: (await getMission((await params).slug, user.id))?.mission.title ?? "Missão" };
 }
 
 export default async function MissionPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const user = await requireOnboardedUser();
-  const data = getMission(slug, user.id);
+  const data = await getMission(slug, user.id);
   if (!data) notFound();
   const { mission, progress } = data;
-  const allowed = canAccessPremium(planOf(user), mission.is_premium);
+  const allowed = canAccessPremium(await planOf(user), mission.is_premium);
   const minutes = mission.est_minutes >= 60 ? `${Math.round((mission.est_minutes / 60) * 10) / 10} horas` : `${mission.est_minutes} minutos`;
 
   return (

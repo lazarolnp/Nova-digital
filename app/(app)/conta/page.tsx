@@ -14,12 +14,12 @@ export const metadata: Metadata = { title: "Minha conta" };
 
 export default async function AccountPage() {
   const user = await requireOnboardedUser();
-  const plan = planOf(user);
-  const sub = activeSubscription(user.id);
-  const ob = get<Record<OnboardingKey, string>>("SELECT level, area, hours, budget, goal, preference FROM onboarding WHERE user_id = ?", user.id);
-  const xp = totalXp(user.id);
+  const plan = await planOf(user);
+  const sub = await activeSubscription(user.id);
+  const ob = await get<Record<OnboardingKey, string>>("SELECT level, area, hours, budget, goal, preference FROM onboarding WHERE user_id = ?", user.id);
+  const xp = await totalXp(user.id);
   const level = levelFor(xp);
-  const achievements = unlockedAchievements(user.id);
+  const achievements = await unlockedAchievements(user.id);
 
   return (
     <>

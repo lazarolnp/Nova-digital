@@ -1,62 +1,68 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
+import { createClient, type Client, type InStatement, type InValue } from "@libsql/client";
 import { SCHEMA } from "./schema";
 import { seedIfEmpty } from "./seed";
 
-// node:sqlite é carregado via getBuiltinModule para que o bundler não tente empacotá-lo.
-const { DatabaseSync } = process.getBuiltinModule("node:sqlite") as typeof import("node:sqlite");
+// Banco via libSQL: arquivo local em desenvolvimento ou Turso em produção (ex.: Vercel).
+// URL: TURSO_DATABASE_URL (libsql://...) ou DATABASE_URL (file:...). Padrão: data/novadigital.db.
 
-export type DB = DatabaseSyncType;
-type Param = string | number | bigint | null | Uint8Array;
+type Param = InValue;
 
-const globalForDb = globalThis as unknown as { __novaDb?: DB };
+const globalForDb = globalThis as unknown as { __novaDb?: Promise<Client> };
 
-function open(): DB {
-  const file = process.env.DATABASE_PATH || path.join(process.cwd(), "data", "novadigital.db");
+function databaseUrl() {
+  const url = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL;
+  if (url) return url;
+  if (process.env.VERCEL) {
+    throw new Error("Configure TURSO_DATABASE_URL e TURSO_AUTH_TOKEN: a Vercel não tem disco persistente para SQLite local.");
+  }
+  const file = path.join(process.cwd(), "data", "novadigital.db");
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const db = new DatabaseSync(file);
-  db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
-  db.exec(SCHEMA);
-  seedIfEmpty(db);
-  return db;
+  return `file:${file}`;
 }
 
-export function db(): DB {
-  if (!globalForDb.__novaDb) globalForDb.__novaDb = open();
+async function open(): Promise<Client> {
+  const client = createClient({ url: databaseUrl(), authToken: process.env.TURSO_AUTH_TOKEN, intMode: "number" });
+  await client.executeMultiple(SCHEMA);
+  await seedIfEmpty(client);
+  return client;
+}
+
+export function db(): Promise<Client> {
+  if (!globalForDb.__novaDb) {
+    globalForDb.__novaDb = open().catch((err) => {
+      globalForDb.__novaDb = undefined;
+      throw err;
+    });
+  }
   return globalForDb.__novaDb;
 }
 
-// node:sqlite retorna objetos sem protótipo; convertemos para objetos comuns
-// para que possam ser serializados e enviados a Client Components.
-export function all<T>(sql: string, ...params: Param[]): T[] {
-  return db()
-    .prepare(sql)
-    .all(...params)
-    .map((row) => ({ ...row }) as T);
+function toObject<T>(columns: string[], row: ArrayLike<unknown>): T {
+  const obj: Record<string, unknown> = {};
+  columns.forEach((c, i) => (obj[c] = row[i]));
+  return obj as T;
 }
 
-export function get<T>(sql: string, ...params: Param[]): T | undefined {
-  const row = db().prepare(sql).get(...params);
-  return row ? ({ ...row } as T) : undefined;
+export async function all<T>(sql: string, ...args: Param[]): Promise<T[]> {
+  const rs = await (await db()).execute({ sql, args });
+  return rs.rows.map((r) => toObject<T>(rs.columns, r));
 }
 
-export function run(sql: string, ...params: Param[]) {
-  return db().prepare(sql).run(...params);
+export async function get<T>(sql: string, ...args: Param[]): Promise<T | undefined> {
+  return (await all<T>(sql, ...args))[0];
 }
 
-export function tx<T>(fn: () => T): T {
-  const d = db();
-  d.exec("BEGIN");
-  try {
-    const result = fn();
-    d.exec("COMMIT");
-    return result;
-  } catch (err) {
-    d.exec("ROLLBACK");
-    throw err;
-  }
+export async function run(sql: string, ...args: Param[]) {
+  const rs = await (await db()).execute({ sql, args });
+  return { changes: rs.rowsAffected, lastInsertRowid: Number(rs.lastInsertRowid ?? 0) };
+}
+
+/** Executa vários comandos de forma atômica (todos ou nenhum). */
+export async function batch(statements: InStatement[]) {
+  await (await db()).batch(statements, "write");
 }
 
 export function parseJson<T>(value: string | null | undefined, fallback: T): T {

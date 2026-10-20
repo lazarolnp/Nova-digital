@@ -17,17 +17,17 @@ function duration(min: number) {
 
 export default async function MissionsPage({ searchParams }: { searchParams: Promise<{ trilha?: string; status?: string }> }) {
   const user = await requireOnboardedUser();
-  const plan = planOf(user);
+  const plan = await planOf(user);
   const { trilha, status } = await searchParams;
-  const missions = listMissions(user.id);
-  const trails = all<{ slug: string; title: string }>("SELECT slug, title FROM trails ORDER BY sort");
+  const missions = await listMissions(user.id);
+  const trails = await all<{ slug: string; title: string }>("SELECT slug, title FROM trails ORDER BY sort");
   const filtered = missions.filter(
     (m) =>
       (!trilha || m.trail_slug === trilha) &&
       (!status || (status === "concluidas" ? m.status === "concluida" : status === "andamento" ? m.status === "em_andamento" : !m.status)),
   );
   const done = missions.filter((m) => m.status === "concluida").length;
-  const xp = totalXp(user.id);
+  const xp = await totalXp(user.id);
   const level = levelFor(xp);
   const qs = (params: Record<string, string | undefined>) => {
     const p = new URLSearchParams();

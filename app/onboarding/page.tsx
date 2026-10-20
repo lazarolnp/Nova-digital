@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Seu plano personalizado" };
 
 export default async function OnboardingPage() {
   const user = await requireUser();
-  const current = get<Record<OnboardingKey, string>>("SELECT level, area, hours, budget, goal, preference FROM onboarding WHERE user_id = ?", user.id);
+  const current = await get<Record<OnboardingKey, string>>("SELECT level, area, hours, budget, goal, preference FROM onboarding WHERE user_id = ?", user.id);
   return (
     <main className="auth-wrap">
       <div className="auth-card fade-in" style={{ maxWidth: 680 }}>

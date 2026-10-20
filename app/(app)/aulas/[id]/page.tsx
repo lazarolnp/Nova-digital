@@ -13,19 +13,19 @@ import { CompleteLessonButton, LessonNotesForm } from "@/components/LessonAction
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const id = intParam((await params).id);
-  return { title: (id && getLesson(id)?.title) || "Aula" };
+  return { title: (id && (await getLesson(id))?.title) || "Aula" };
 }
 
 export default async function LessonPage({ params }: { params: Promise<{ id: string }> }) {
   const id = intParam((await params).id);
   if (!id) notFound();
   const user = await requireOnboardedUser();
-  const lesson = getLesson(id);
+  const lesson = await getLesson(id);
   if (!lesson) notFound();
-  const plan = planOf(user);
+  const plan = await planOf(user);
   const allowed = canAccessLesson(plan, lesson.course_premium, lesson.is_free_preview);
-  const nav = lessonNeighbors(lesson.id, lesson.course_id);
-  const progress = get<{ completed_at: string | null; notes: string }>(
+  const nav = await lessonNeighbors(lesson.id, lesson.course_id);
+  const progress = await get<{ completed_at: string | null; notes: string }>(
     "SELECT completed_at, notes FROM lesson_progress WHERE user_id = ? AND lesson_id = ?",
     user.id,
     lesson.id,

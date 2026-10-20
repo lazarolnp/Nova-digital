@@ -14,12 +14,12 @@ export default async function AdminLesson({ params, searchParams }: { params: Pr
   const id = intParam((await params).id);
   if (!id) notFound();
   const flash = await searchParams;
-  const l = get<{ id: number; module_id: number; title: string; content: string; exercise: string; materials: string; video_url: string; duration_min: number; is_free_preview: number; sort: number; course_id: number }>(
+  const l = await get<{ id: number; module_id: number; title: string; content: string; exercise: string; materials: string; video_url: string; duration_min: number; is_free_preview: number; sort: number; course_id: number }>(
     "SELECT l.*, m.course_id FROM lessons l JOIN modules m ON m.id = l.module_id WHERE l.id = ?",
     id,
   );
   if (!l) notFound();
-  const modules = all<{ id: number; title: string }>("SELECT id, title FROM modules WHERE course_id = ? ORDER BY sort, id", l.course_id);
+  const modules = await all<{ id: number; title: string }>("SELECT id, title FROM modules WHERE course_id = ? ORDER BY sort, id", l.course_id);
   const materials = parseJson<{ title: string; url: string }[]>(l.materials, [])
     .map((m) => `${m.title} | ${m.url}`)
     .join("\n");

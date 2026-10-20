@@ -12,25 +12,25 @@ export const dynamic = "force-dynamic";
 
 export default async function PlansPage() {
   const user = await getUser();
-  const plan = user ? planOf(user) : null;
-  const priceLabel = getSetting("billing.premium_price_label");
-  const checkoutUrl = getSetting("billing.checkout_url");
-  const onWaitlist = user ? Boolean(get("SELECT 1 FROM waitlist WHERE user_id = ?", user.id)) : false;
+  const plan = user ? await planOf(user) : null;
+  const priceLabel = await getSetting("billing.premium_price_label");
+  const checkoutUrl = await getSetting("billing.checkout_url");
+  const onWaitlist = user ? Boolean(await get("SELECT 1 FROM waitlist WHERE user_id = ?", user.id)) : false;
   const free = [
     "Curso completo de Fundamentos do Marketing Digital",
     "Aulas introdutórias de todas as trilhas",
     "Missões iniciais com checklist e registro",
     "Biblioteca com ferramentas básicas",
     "Plano de 30 dias personalizado",
-    `Assistente de IA: até ${limit("free", "ai_messages_per_day")} interações por dia`,
-    `Até ${limit("free", "max_projects")} projetos no portfólio`,
+    `Assistente de IA: até ${await limit("free", "ai_messages_per_day")} interações por dia`,
+    `Até ${await limit("free", "max_projects")} projetos no portfólio`,
   ];
   const premium = [
     "Catálogo completo de cursos e trilhas avançadas",
     "Todas as missões e projetos práticos",
     "Modelos profissionais e ferramentas adicionais",
-    `Assistente de IA ampliado: até ${limit("premium", "ai_messages_per_day")} interações por dia`,
-    `Até ${limit("premium", "max_projects")} projetos no portfólio`,
+    `Assistente de IA ampliado: até ${await limit("premium", "ai_messages_per_day")} interações por dia`,
+    `Até ${await limit("premium", "max_projects")} projetos no portfólio`,
     "Plano de 30 dias com todo o conteúdo premium incluído",
   ];
 

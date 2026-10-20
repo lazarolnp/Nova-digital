@@ -1,5 +1,6 @@
 import "server-only";
-import { all, get, run, tx } from "./db";
+import type { InStatement } from "@libsql/client";
+import { all, batch, get, run } from "./db";
 import { AREA_TO_TRAIL, type OnboardingAnswers, optionLabel } from "./options";
 import { canAccessLesson, type PlanId } from "./access";
 
@@ -19,8 +20,8 @@ const STUDY_DAYS: Record<string, number[]> = {
 };
 const WEEKLY_MINUTES: Record<string, number> = { "2-4": 180, "5-8": 390, "9-15": 720, "16+": 1080 };
 
-function courseLessons(trailSlug: string, plan: PlanId): Task[] {
-  const rows = all<{ id: number; title: string; duration_min: number; is_premium: number; is_free_preview: number; course: string }>(
+async function courseLessons(trailSlug: string, plan: PlanId): Promise<Task[]> {
+  const rows = await all<{ id: number; title: string; duration_min: number; is_premium: number; is_free_preview: number; course: string }>(
     `SELECT l.id, l.title, l.duration_min, c.is_premium, l.is_free_preview, c.title AS course
      FROM trails t JOIN courses c ON c.trail_id = t.id JOIN modules m ON m.course_id = c.id JOIN lessons l ON l.module_id = m.id
      WHERE t.slug = ? AND c.published = 1 ORDER BY c.sort, m.sort, l.sort`,
@@ -38,18 +39,19 @@ function courseLessons(trailSlug: string, plan: PlanId): Task[] {
     }));
 }
 
-function trailMissions(trailSlug: string, plan: PlanId): Task[] {
-  return all<{ id: number; title: string; est_minutes: number; is_premium: number }>(
+async function trailMissions(trailSlug: string, plan: PlanId): Promise<Task[]> {
+  const rows = await all<{ id: number; title: string; est_minutes: number; is_premium: number }>(
     `SELECT m.id, m.title, m.est_minutes, m.is_premium FROM missions m JOIN trails t ON t.id = m.trail_id
      WHERE t.slug = ? AND m.published = 1 ORDER BY m.sort`,
     trailSlug,
-  )
+  );
+  return rows
     .filter((m) => plan === "premium" || !m.is_premium)
     .map((m) => ({ kind: "missao" as const, refId: m.id, title: m.title, detail: "Missão prática — registre o resultado ao concluir", minutes: m.est_minutes }));
 }
 
-function missionBySlug(slug: string, plan: PlanId): Task | null {
-  const m = get<{ id: number; title: string; est_minutes: number; is_premium: number }>(
+async function missionBySlug(slug: string, plan: PlanId): Promise<Task | null> {
+  const m = await get<{ id: number; title: string; est_minutes: number; is_premium: number }>(
     "SELECT id, title, est_minutes, is_premium FROM missions WHERE slug = ? AND published = 1",
     slug,
   );
@@ -59,7 +61,7 @@ function missionBySlug(slug: string, plan: PlanId): Task | null {
 
 const action = (title: string, detail: string, minutes = 30): Task => ({ kind: "acao", refId: null, title, detail, minutes });
 
-export function buildPlan(a: OnboardingAnswers, plan: PlanId) {
+export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
   const focusTrail = AREA_TO_TRAIL[a.area] ?? "primeiros-passos";
   const queue: Task[] = [];
   const seen = new Set<string>();
@@ -72,24 +74,24 @@ export function buildPlan(a: OnboardingAnswers, plan: PlanId) {
   };
 
   // 1. Fundamentos (completos para quem está começando)
-  const foundation = courseLessons("primeiros-passos", plan);
+  const foundation = await courseLessons("primeiros-passos", plan);
   if (a.level === "intermediario" && a.area !== "indefinido") {
     foundation.filter((l) => /golpes|rotina/i.test(l.title)).forEach(push);
   } else {
     foundation.forEach(push);
   }
-  push(missionBySlug("rotina-de-estudos", plan));
+  push(await missionBySlug("rotina-de-estudos", plan));
   push(
     a.budget === "zero"
       ? action("Monte seu kit de ferramentas gratuitas", "Na Biblioteca de Ferramentas, filtre por \"Gratuito\" e escolha uma ferramenta por categoria que você vai usar.", 30)
       : action("Defina um teto de gastos para o mês", "Decida quanto pode investir em ferramentas e testes e anote. Comece pelas opções gratuitas e só pague quando houver necessidade clara.", 20),
   );
-  push(missionBySlug("mapa-do-mercado", plan));
+  push(await missionBySlug("mapa-do-mercado", plan));
 
   // 2. Área de foco (ou exploração quando ainda não há área definida)
   if (a.area === "indefinido") {
     for (const slug of ["trafego-pago", "criacao-de-sites", "edicao-de-videos-ia", "marketing-de-afiliados", "ia-aplicada"]) {
-      courseLessons(slug, plan).slice(0, 1).forEach(push);
+      (await courseLessons(slug, plan)).slice(0, 1).forEach(push);
     }
     push(
       action(
@@ -99,11 +101,11 @@ export function buildPlan(a: OnboardingAnswers, plan: PlanId) {
       ),
     );
   } else {
-    courseLessons(focusTrail, plan).forEach(push);
-    trailMissions(focusTrail, plan).forEach(push);
+    (await courseLessons(focusTrail, plan)).forEach(push);
+    (await trailMissions(focusTrail, plan)).forEach(push);
   }
-  courseLessons("ia-aplicada", plan).slice(0, 1).forEach(push);
-  push(missionBySlug("kit-de-prompts", plan));
+  (await courseLessons("ia-aplicada", plan)).slice(0, 1).forEach(push);
+  push(await missionBySlug("kit-de-prompts", plan));
 
   if (a.area === "trafego" && a.budget === "zero") {
     push(action("Pratique sem investir", "Monte planos e relatórios marcados como simulação. Teste real só quando houver um negócio e orçamento definidos.", 20));
@@ -122,15 +124,15 @@ export function buildPlan(a: OnboardingAnswers, plan: PlanId) {
   if (a.goal === "negocio") {
     push(action("Aplique no seu negócio", "Escolha uma ação aprendida (página, criativo ou vídeo) e aplique no seu próprio negócio. Registre o antes e o depois.", 90));
   } else if (a.preference === "servicos") {
-    courseLessons("primeiros-clientes", plan).forEach(push);
-    push(missionBySlug("portfolio-tres-projetos", plan));
-    push(missionBySlug("pesquisa-dez-clientes", plan));
-    push(missionBySlug("pratica-abordagem", plan));
+    (await courseLessons("primeiros-clientes", plan)).forEach(push);
+    push(await missionBySlug("portfolio-tres-projetos", plan));
+    push(await missionBySlug("pesquisa-dez-clientes", plan));
+    push(await missionBySlug("pratica-abordagem", plan));
   } else if (a.preference === "produtos" && a.area !== "afiliados") {
-    courseLessons("marketing-de-afiliados", plan).slice(0, 2).forEach(push);
+    (await courseLessons("marketing-de-afiliados", plan)).slice(0, 2).forEach(push);
   } else if (a.preference === "conteudo" && a.area !== "video") {
-    courseLessons("edicao-de-videos-ia", plan).slice(0, 2).forEach(push);
-    push(missionBySlug("primeiro-video-curto", plan));
+    (await courseLessons("edicao-de-videos-ia", plan)).slice(0, 2).forEach(push);
+    push(await missionBySlug("primeiro-video-curto", plan));
   }
 
   // ---- Distribuição nos 30 dias ----
@@ -196,62 +198,48 @@ export function buildPlan(a: OnboardingAnswers, plan: PlanId) {
   return { items, weeklyGoals, summary, leftover };
 }
 
-export function saveOnboardingAndPlan(userId: number, a: OnboardingAnswers, plan: PlanId) {
-  const built = buildPlan(a, plan);
-  return tx(() => {
-    run(
-      `INSERT INTO onboarding (user_id, level, area, hours, budget, goal, preference, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-       ON CONFLICT(user_id) DO UPDATE SET level = excluded.level, area = excluded.area, hours = excluded.hours,
-         budget = excluded.budget, goal = excluded.goal, preference = excluded.preference, updated_at = excluded.updated_at`,
-      userId,
-      a.level,
-      a.area,
-      a.hours,
-      a.budget,
-      a.goal,
-      a.preference,
-    );
-    run("DELETE FROM plans WHERE user_id = ?", userId);
-    const planId = Number(
-      run(
-        "INSERT INTO plans (user_id, summary, weekly_goals, inputs) VALUES (?, ?, ?, ?)",
+export async function saveOnboardingAndPlan(userId: number, a: OnboardingAnswers, plan: PlanId) {
+  const built = await buildPlan(a, plan);
+  // O plano novo é referenciado por subconsulta, permitindo gravar tudo num único lote atômico.
+  const planRef = "(SELECT MAX(id) FROM plans WHERE user_id = ?)";
+  const stmts: InStatement[] = [
+    {
+      sql: `INSERT INTO onboarding (user_id, level, area, hours, budget, goal, preference, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(user_id) DO UPDATE SET level = excluded.level, area = excluded.area, hours = excluded.hours,
+              budget = excluded.budget, goal = excluded.goal, preference = excluded.preference, updated_at = excluded.updated_at`,
+      args: [userId, a.level, a.area, a.hours, a.budget, a.goal, a.preference],
+    },
+    { sql: "DELETE FROM plan_items WHERE plan_id IN (SELECT id FROM plans WHERE user_id = ?)", args: [userId] },
+    { sql: "DELETE FROM plans WHERE user_id = ?", args: [userId] },
+    {
+      sql: "INSERT INTO plans (user_id, summary, weekly_goals, inputs) VALUES (?, ?, ?, ?)",
+      args: [
         userId,
         built.summary + (built.leftover > 0 ? ` Ainda há ${built.leftover} atividades da sua trilha para o próximo ciclo.` : ""),
         JSON.stringify(built.weeklyGoals),
         JSON.stringify(a),
-      ).lastInsertRowid,
-    );
-    for (const it of built.items) {
-      run(
-        "INSERT INTO plan_items (plan_id, day, week, kind, ref_id, title, detail, est_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        planId,
-        it.day,
-        it.week,
-        it.kind,
-        it.refId,
-        it.title,
-        it.detail,
-        it.minutes,
-      );
-    }
+      ],
+    },
+    ...built.items.map((it) => ({
+      sql: `INSERT INTO plan_items (plan_id, day, week, kind, ref_id, title, detail, est_minutes) VALUES (${planRef}, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [userId, it.day, it.week, it.kind, it.refId, it.title, it.detail, it.minutes],
+    })),
     // Marca como concluídas as aulas/missões que o usuário já concluiu antes de refazer o plano.
-    run(
-      `UPDATE plan_items SET done_at = datetime('now') WHERE plan_id = ? AND (
-         (kind = 'aula' AND ref_id IN (SELECT lesson_id FROM lesson_progress WHERE user_id = ? AND completed_at IS NOT NULL)) OR
-         (kind = 'missao' AND ref_id IN (SELECT mission_id FROM mission_progress WHERE user_id = ? AND status = 'concluida')))`,
-      planId,
-      userId,
-      userId,
-    );
-    run("UPDATE users SET onboarded = 1 WHERE id = ?", userId);
-    return planId;
-  });
+    {
+      sql: `UPDATE plan_items SET done_at = datetime('now') WHERE plan_id = ${planRef} AND (
+              (kind = 'aula' AND ref_id IN (SELECT lesson_id FROM lesson_progress WHERE user_id = ? AND completed_at IS NOT NULL)) OR
+              (kind = 'missao' AND ref_id IN (SELECT mission_id FROM mission_progress WHERE user_id = ? AND status = 'concluida')))`,
+      args: [userId, userId, userId],
+    },
+    { sql: "UPDATE users SET onboarded = 1 WHERE id = ?", args: [userId] },
+  ];
+  await batch(stmts);
 }
 
 /** Mantém o plano sincronizado quando o usuário conclui aulas ou missões fora dele. */
-export function syncPlanItem(userId: number, kind: "aula" | "missao", refId: number, done: boolean) {
-  run(
+export async function syncPlanItem(userId: number, kind: "aula" | "missao", refId: number, done: boolean) {
+  await run(
     `UPDATE plan_items SET done_at = ${done ? "COALESCE(done_at, datetime('now'))" : "NULL"}
      WHERE kind = ? AND ref_id = ? AND plan_id IN (SELECT id FROM plans WHERE user_id = ?)`,
     kind,

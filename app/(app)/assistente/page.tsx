@@ -15,15 +15,15 @@ export const metadata: Metadata = { title: "Assistente IA" };
 export default async function AssistantPage({ searchParams }: { searchParams: Promise<{ c?: string; q?: string }> }) {
   const user = await requireOnboardedUser();
   const { c, q } = await searchParams;
-  const plan = planOf(user);
-  const conversations = all<{ id: number; title: string }>(
+  const plan = await planOf(user);
+  const conversations = await all<{ id: number; title: string }>(
     "SELECT id, title FROM conversations WHERE user_id = ? ORDER BY updated_at DESC LIMIT 30",
     user.id,
   );
   const selectedId = intParam(c);
-  const selected = selectedId ? get<{ id: number }>("SELECT id FROM conversations WHERE id = ? AND user_id = ?", selectedId, user.id) : undefined;
+  const selected = selectedId ? await get<{ id: number }>("SELECT id FROM conversations WHERE id = ? AND user_id = ?", selectedId, user.id) : undefined;
   const messages = selected
-    ? all<{ role: "user" | "assistant"; content: string }>("SELECT role, content FROM chat_messages WHERE conversation_id = ? ORDER BY id", selected.id)
+    ? await all<{ role: "user" | "assistant"; content: string }>("SELECT role, content FROM chat_messages WHERE conversation_id = ? ORDER BY id", selected.id)
     : [];
 
   return (
@@ -67,7 +67,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
             initialMessages={messages}
             enabled={aiConfigured()}
             initialQuery={q?.slice(0, 500)}
-            usage={{ used: aiUsageToday(user.id), limit: limit(plan, "ai_messages_per_day") }}
+            usage={{ used: await aiUsageToday(user.id), limit: await limit(plan, "ai_messages_per_day") }}
           />
         </div>
       </div>

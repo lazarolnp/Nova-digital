@@ -11,8 +11,8 @@ export const metadata: Metadata = { title: "Trilhas" };
 
 export default async function TrailsPage() {
   const user = await requireOnboardedUser();
-  const plan = planOf(user);
-  const trails = listTrails(user.id);
+  const plan = await planOf(user);
+  const trails = await listTrails(user.id);
   return (
     <>
       <PageHeader title="Trilhas de aprendizagem" subtitle="Comece pelo básico e avance em etapas. Cada trilha combina aulas, exercícios e missões práticas." />

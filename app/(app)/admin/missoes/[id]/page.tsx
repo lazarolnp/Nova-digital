@@ -15,7 +15,7 @@ export default async function AdminMission({ params, searchParams }: { params: P
   const id = intParam((await params).id);
   if (!id) notFound();
   const flash = await searchParams;
-  const row = get<{
+  const row = await get<{
     id: number;
     slug: string;
     trail_id: number | null;
@@ -33,7 +33,7 @@ export default async function AdminMission({ params, searchParams }: { params: P
     sort: number;
   }>("SELECT * FROM missions WHERE id = ?", id);
   if (!row) notFound();
-  const trails = all<{ id: number; title: string }>("SELECT id, title FROM trails ORDER BY sort");
+  const trails = await all<{ id: number; title: string }>("SELECT id, title FROM trails ORDER BY sort");
   const mission = {
     ...row,
     steps: parseJson<string[]>(row.steps, []),

@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Admin · Chamados" };
 export default async function AdminTickets({ searchParams }: { searchParams: Flash }) {
   await requireAdmin();
   const flash = await searchParams;
-  const tickets = all<{ id: number; category: string; message: string; status: string; reply: string; created_at: string; name: string; email: string }>(
+  const tickets = await all<{ id: number; category: string; message: string; status: string; reply: string; created_at: string; name: string; email: string }>(
     `SELECT t.*, u.name, u.email FROM tickets t JOIN users u ON u.id = t.user_id
      ORDER BY CASE t.status WHEN 'aberto' THEN 0 WHEN 'respondido' THEN 1 ELSE 2 END, t.id DESC LIMIT 100`,
   );

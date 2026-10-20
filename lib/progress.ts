@@ -23,25 +23,25 @@ export function levelFor(xp: number) {
   return { level: index + 1, name: current.name, next: next?.name ?? null, nextAt: next?.min ?? null, pct };
 }
 
-export function totalXp(userId: number): number {
-  return get<{ xp: number }>("SELECT COALESCE(SUM(xp), 0) AS xp FROM xp_events WHERE user_id = ?", userId)?.xp ?? 0;
+export async function totalXp(userId: number): Promise<number> {
+  return (await get<{ xp: number }>("SELECT COALESCE(SUM(xp), 0) AS xp FROM xp_events WHERE user_id = ?", userId))?.xp ?? 0;
 }
 
 /** Concede XP uma única vez por (tipo, referência). */
-export function awardXp(userId: number, kind: string, ref: string | number, xp: number) {
-  run("INSERT OR IGNORE INTO xp_events (user_id, kind, ref, xp) VALUES (?, ?, ?, ?)", userId, kind, String(ref), xp);
+export async function awardXp(userId: number, kind: string, ref: string | number, xp: number) {
+  await run("INSERT OR IGNORE INTO xp_events (user_id, kind, ref, xp) VALUES (?, ?, ?, ?)", userId, kind, String(ref), xp);
 }
 
-export function revokeXp(userId: number, kind: string, ref: string | number) {
-  run("DELETE FROM xp_events WHERE user_id = ? AND kind = ? AND ref = ?", userId, kind, String(ref));
+export async function revokeXp(userId: number, kind: string, ref: string | number) {
+  await run("DELETE FROM xp_events WHERE user_id = ? AND kind = ? AND ref = ?", userId, kind, String(ref));
 }
 
-export function notify(userId: number, kind: "sistema" | "conquista" | "progresso", title: string, body = "", link = "") {
-  run("INSERT INTO notifications (user_id, kind, title, body, link) VALUES (?, ?, ?, ?, ?)", userId, kind, title, body, link);
+export async function notify(userId: number, kind: "sistema" | "conquista" | "progresso", title: string, body = "", link = "") {
+  await run("INSERT INTO notifications (user_id, kind, title, body, link) VALUES (?, ?, ?, ?, ?)", userId, kind, title, body, link);
 }
 
-export function unreadCount(userId: number): number {
-  return get<{ n: number }>("SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read_at IS NULL", userId)?.n ?? 0;
+export async function unreadCount(userId: number): Promise<number> {
+  return (await get<{ n: number }>("SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read_at IS NULL", userId))?.n ?? 0;
 }
 
 // ---- Estatísticas ----
@@ -55,11 +55,11 @@ export type UserStats = {
   streak: number;
 };
 
-export function activityDays(userId: number): string[] {
-  return all<{ d: string }>(
+export async function activityDays(userId: number): Promise<string[]> {
+  return (await all<{ d: string }>(
     "SELECT DISTINCT date(created_at) AS d FROM xp_events WHERE user_id = ? ORDER BY d DESC LIMIT 60",
     userId,
-  ).map((r) => r.d);
+  )).map((r) => r.d);
 }
 
 function currentStreak(days: string[]): number {
@@ -76,17 +76,17 @@ function currentStreak(days: string[]): number {
   return streak;
 }
 
-export function userStats(userId: number): UserStats {
+export async function userStats(userId: number): Promise<UserStats> {
   const lessonsDone =
-    get<{ n: number }>("SELECT COUNT(*) AS n FROM lesson_progress WHERE user_id = ? AND completed_at IS NOT NULL", userId)?.n ?? 0;
+    (await get<{ n: number }>("SELECT COUNT(*) AS n FROM lesson_progress WHERE user_id = ? AND completed_at IS NOT NULL", userId))?.n ?? 0;
   const missionsDone =
-    get<{ n: number }>("SELECT COUNT(*) AS n FROM mission_progress WHERE user_id = ? AND status = 'concluida'", userId)?.n ?? 0;
-  const projects = get<{ total: number; done: number }>(
+    (await get<{ n: number }>("SELECT COUNT(*) AS n FROM mission_progress WHERE user_id = ? AND status = 'concluida'", userId))?.n ?? 0;
+  const projects = await get<{ total: number; done: number }>(
     "SELECT COUNT(*) AS total, COALESCE(SUM(status = 'concluido'), 0) AS done FROM projects WHERE user_id = ?",
     userId,
   );
   const trailsDone =
-    get<{ n: number }>(
+    (await get<{ n: number }>(
       `SELECT COUNT(*) AS n FROM (
          SELECT c.id FROM courses c JOIN modules m ON m.course_id = c.id JOIN lessons l ON l.module_id = m.id
          LEFT JOIN lesson_progress lp ON lp.lesson_id = l.id AND lp.user_id = ? AND lp.completed_at IS NOT NULL
@@ -94,16 +94,16 @@ export function userStats(userId: number): UserStats {
          GROUP BY c.id HAVING COUNT(l.id) > 0 AND COUNT(l.id) = COUNT(lp.lesson_id)
        )`,
       userId,
-    )?.n ?? 0;
+    ))?.n ?? 0;
   const planWeeksDone =
-    get<{ n: number }>(
+    (await get<{ n: number }>(
       `SELECT COUNT(*) AS n FROM (
          SELECT pi.week FROM plan_items pi
          WHERE pi.plan_id = (SELECT id FROM plans WHERE user_id = ? ORDER BY id DESC LIMIT 1)
          GROUP BY pi.week HAVING SUM(pi.done_at IS NULL) = 0
        )`,
       userId,
-    )?.n ?? 0;
+    ))?.n ?? 0;
   return {
     lessonsDone,
     missionsDone,
@@ -111,7 +111,7 @@ export function userStats(userId: number): UserStats {
     projectsTotal: projects?.total ?? 0,
     trailsDone,
     planWeeksDone,
-    streak: currentStreak(activityDays(userId)),
+    streak: currentStreak(await activityDays(userId)),
   };
 }
 
@@ -128,21 +128,21 @@ export const ACHIEVEMENTS: { code: string; title: string; description: string; t
 ];
 
 /** Verifica conquistas novas, registra e notifica. Deve ser chamada após ações de progresso. */
-export function checkAchievements(userId: number) {
-  const stats = userStats(userId);
+export async function checkAchievements(userId: number) {
+  const stats = await userStats(userId);
   const unlocked = new Set(
-    all<{ code: string }>("SELECT code FROM user_achievements WHERE user_id = ?", userId).map((r) => r.code),
+    (await all<{ code: string }>("SELECT code FROM user_achievements WHERE user_id = ?", userId)).map((r) => r.code),
   );
   for (const a of ACHIEVEMENTS) {
     if (!unlocked.has(a.code) && a.test(stats)) {
-      run("INSERT OR IGNORE INTO user_achievements (user_id, code) VALUES (?, ?)", userId, a.code);
-      notify(userId, "conquista", `Conquista desbloqueada: ${a.title}`, a.description, "/conta#conquistas");
+      await run("INSERT OR IGNORE INTO user_achievements (user_id, code) VALUES (?, ?)", userId, a.code);
+      await notify(userId, "conquista", `Conquista desbloqueada: ${a.title}`, a.description, "/conta#conquistas");
     }
   }
 }
 
-export function unlockedAchievements(userId: number) {
-  const rows = all<{ code: string; unlocked_at: string }>(
+export async function unlockedAchievements(userId: number) {
+  const rows = await all<{ code: string; unlocked_at: string }>(
     "SELECT code, unlocked_at FROM user_achievements WHERE user_id = ?",
     userId,
   );
@@ -151,8 +151,8 @@ export function unlockedAchievements(userId: number) {
 }
 
 /** XP por dia nos últimos N dias (para o gráfico de evolução). */
-export function xpByDay(userId: number, days = 14) {
-  const rows = all<{ d: string; xp: number }>(
+export async function xpByDay(userId: number, days = 14) {
+  const rows = await all<{ d: string; xp: number }>(
     "SELECT date(created_at) AS d, SUM(xp) AS xp FROM xp_events WHERE user_id = ? AND date(created_at) >= date('now', ?) GROUP BY d",
     userId,
     `-${days - 1} days`,
@@ -178,10 +178,10 @@ export const JOURNEY_STAGES = [
   { n: 5, title: "Primeiros clientes", description: "Prospectar, propor e entregar com método." },
 ];
 
-export function journeyStage(userId: number, focusCourseId: number | null) {
-  const pct = (courseId: number | null) => {
+export async function journeyStage(userId: number, focusCourseId: number | null) {
+  const pct = async (courseId: number | null) => {
     if (!courseId) return 0;
-    const r = get<{ total: number; done: number }>(
+    const r = await get<{ total: number; done: number }>(
       `SELECT COUNT(l.id) AS total, COUNT(lp.lesson_id) AS done
        FROM modules m JOIN lessons l ON l.module_id = m.id
        LEFT JOIN lesson_progress lp ON lp.lesson_id = l.id AND lp.user_id = ? AND lp.completed_at IS NOT NULL
@@ -191,11 +191,11 @@ export function journeyStage(userId: number, focusCourseId: number | null) {
     );
     return r && r.total ? r.done / r.total : 0;
   };
-  const foundation = get<{ id: number }>("SELECT id FROM courses WHERE slug = 'fundamentos-marketing-digital'")?.id ?? null;
-  const stats = userStats(userId);
+  const foundation = (await get<{ id: number }>("SELECT id FROM courses WHERE slug = 'fundamentos-marketing-digital'"))?.id ?? null;
+  const stats = await userStats(userId);
   let stage = 1;
-  if (pct(foundation) >= 0.8) stage = 2;
-  if (stage === 2 && (focusCourseId === foundation || pct(focusCourseId) >= 0.5)) stage = 3;
+  if ((await pct(foundation)) >= 0.8) stage = 2;
+  if (stage === 2 && (focusCourseId === foundation || (await pct(focusCourseId)) >= 0.5)) stage = 3;
   if (stage === 3 && stats.missionsDone >= 2) stage = 4;
   if (stage === 4 && stats.projectsDone >= 3) stage = 5;
   return JOURNEY_STAGES[stage - 1];

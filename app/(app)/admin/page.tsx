@@ -6,19 +6,19 @@ import { AdminHeader } from "@/components/AdminUI";
 
 export const metadata: Metadata = { title: "Administração" };
 
-const count = (sql: string) => get<{ n: number }>(sql)?.n ?? 0;
+const count = async (sql: string) => (await get<{ n: number }>(sql))?.n ?? 0;
 
 export default async function AdminHome() {
   await requireAdmin();
   const cards = [
-    { label: "Usuários", value: count("SELECT COUNT(*) AS n FROM users") },
-    { label: "Assinaturas ativas", value: count("SELECT COUNT(DISTINCT user_id) AS n FROM subscriptions WHERE status = 'active'") },
-    { label: "Lista de espera Premium", value: count("SELECT COUNT(*) AS n FROM waitlist") },
-    { label: "Chamados abertos", value: count("SELECT COUNT(*) AS n FROM tickets WHERE status = 'aberto'") },
-    { label: "Aulas concluídas (total)", value: count("SELECT COUNT(*) AS n FROM lesson_progress WHERE completed_at IS NOT NULL") },
-    { label: "Missões concluídas (total)", value: count("SELECT COUNT(*) AS n FROM mission_progress WHERE status = 'concluida'") },
+    { label: "Usuários", value: await count("SELECT COUNT(*) AS n FROM users") },
+    { label: "Assinaturas ativas", value: await count("SELECT COUNT(DISTINCT user_id) AS n FROM subscriptions WHERE status = 'active'") },
+    { label: "Lista de espera Premium", value: await count("SELECT COUNT(*) AS n FROM waitlist") },
+    { label: "Chamados abertos", value: await count("SELECT COUNT(*) AS n FROM tickets WHERE status = 'aberto'") },
+    { label: "Aulas concluídas (total)", value: await count("SELECT COUNT(*) AS n FROM lesson_progress WHERE completed_at IS NOT NULL") },
+    { label: "Missões concluídas (total)", value: await count("SELECT COUNT(*) AS n FROM mission_progress WHERE status = 'concluida'") },
   ];
-  const content = all<{ label: string; n: number }>(
+  const content = await all<{ label: string; n: number }>(
     `SELECT 'Cursos' AS label, COUNT(*) AS n FROM courses UNION ALL SELECT 'Aulas', COUNT(*) FROM lessons
      UNION ALL SELECT 'Missões', COUNT(*) FROM missions UNION ALL SELECT 'Ferramentas', COUNT(*) FROM tools`,
   );

@@ -55,11 +55,11 @@ Regras:
 - Se pedirem algo antiético (enganar clientes, fraudes, perfis falsos, spam), recuse e ofereça uma alternativa honesta.
 - Use Markdown simples (títulos com ##, listas e **negrito**). Seja direto: prefira respostas de tamanho médio, e aprofunde quando pedirem.`;
 
-function catalog(): string {
-  const courses = all<{ title: string; trail: string; is_premium: number }>(
+async function catalog(): Promise<string> {
+  const courses = await all<{ title: string; trail: string; is_premium: number }>(
     "SELECT c.title, t.title AS trail, c.is_premium FROM courses c LEFT JOIN trails t ON t.id = c.trail_id WHERE c.published = 1 ORDER BY c.sort",
   );
-  const missions = all<{ title: string; is_premium: number }>("SELECT title, is_premium FROM missions WHERE published = 1 ORDER BY sort");
+  const missions = await all<{ title: string; is_premium: number }>("SELECT title, is_premium FROM missions WHERE published = 1 ORDER BY sort");
   return [
     "Cursos (trilha → curso):",
     ...courses.map((c) => `- ${c.trail} → ${c.title}${c.is_premium ? " (premium, com aulas introdutórias gratuitas)" : " (gratuito)"}`),
@@ -69,11 +69,11 @@ function catalog(): string {
 }
 
 /** Contexto do usuário, enviado como mensagem de sistema no meio da conversa. */
-export function userContext(user: User, plan: PlanId): string {
-  const ob = get<Record<OnboardingKey, string>>("SELECT level, area, hours, budget, goal, preference FROM onboarding WHERE user_id = ?", user.id);
-  const stats = userStats(user.id);
-  const lvl = levelFor(totalXp(user.id));
-  const next = get<{ title: string }>(
+export async function userContext(user: User, plan: PlanId): Promise<string> {
+  const ob = await get<Record<OnboardingKey, string>>("SELECT level, area, hours, budget, goal, preference FROM onboarding WHERE user_id = ?", user.id);
+  const stats = await userStats(user.id);
+  const lvl = levelFor(await totalXp(user.id));
+  const next = await get<{ title: string }>(
     `SELECT pi.title FROM plan_items pi JOIN plans p ON p.id = pi.plan_id WHERE p.user_id = ? AND pi.done_at IS NULL ORDER BY pi.day, pi.id LIMIT 1`,
     user.id,
   );
@@ -92,9 +92,9 @@ export function userContext(user: User, plan: PlanId): string {
   return `Contexto atualizado da pessoa (use para personalizar, não repita literalmente):\n${lines.join("\n")}`;
 }
 
-function requestParams(messages: Anthropic.Beta.Messages.BetaMessageParam[], context: string, maxTokens: number) {
+async function requestParams(messages: Anthropic.Beta.Messages.BetaMessageParam[], context: string, maxTokens: number) {
   const system: Anthropic.Beta.Messages.BetaTextBlockParam[] = [
-    { type: "text", text: `${BASE_PROMPT}\n\n${catalog()}`, cache_control: { type: "ephemeral" } },
+    { type: "text", text: `${BASE_PROMPT}\n\n${await catalog()}`, cache_control: { type: "ephemeral" } },
   ];
   if (MID_SYSTEM_MODELS.has(AI_MODEL)) {
     messages = [...messages, { role: "system", content: context } as unknown as Anthropic.Beta.Messages.BetaMessageParam];
@@ -130,7 +130,7 @@ export async function streamChat(
   onText: (chunk: string) => void,
 ): Promise<string> {
   const messages: Anthropic.Beta.Messages.BetaMessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
-  const stream = getClient().beta.messages.stream(requestParams(messages, context, 8000));
+  const stream = getClient().beta.messages.stream(await requestParams(messages, context, 8000));
   let text = "";
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
@@ -177,7 +177,7 @@ Para cada critério: atendido, parcialmente ou não atendido, com uma frase de j
 Passos concretos e priorizados.
 ## Próximo passo sugerido`;
   const messages: Anthropic.Beta.Messages.BetaMessageParam[] = [{ role: "user", content: prompt }];
-  const final = await getClient().beta.messages.stream(requestParams(messages, input.context, 6000)).finalMessage();
+  const final = await getClient().beta.messages.stream(await requestParams(messages, input.context, 6000)).finalMessage();
   if (final.stop_reason === "refusal") return REFUSAL_MESSAGE;
   return final.content
     .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === "text")

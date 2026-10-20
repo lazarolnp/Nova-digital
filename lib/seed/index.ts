@@ -1,4 +1,4 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { Client, InStatement } from "@libsql/client";
 import { TRAIL_PRIMEIROS_PASSOS, TRAIL_TRAFEGO, TRAIL_SITES } from "./trails-a";
 import { TRAIL_VIDEO, TRAIL_AFILIADOS, TRAIL_IA, TRAIL_CLIENTES } from "./trails-b";
 import { SEED_MISSIONS } from "./missions";
@@ -23,58 +23,55 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   "billing.checkout_url": "",
 };
 
-export function seedIfEmpty(db: DatabaseSync) {
-  const insertSetting = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)");
-  for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) insertSetting.run(key, value);
+export async function seedIfEmpty(db: Client) {
+  await db.batch(
+    Object.entries(DEFAULT_SETTINGS).map(([key, value]) => ({
+      sql: "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+      args: [key, value],
+    })),
+    "write",
+  );
 
-  const { n } = db.prepare("SELECT COUNT(*) AS n FROM trails").get() as { n: number };
-  if (n > 0) return;
+  const rs = await db.execute("SELECT COUNT(*) AS n FROM trails");
+  if (Number(rs.rows[0][0]) > 0) return;
 
-  db.exec("BEGIN");
-  try {
-    const insTrail = db.prepare(
-      "INSERT INTO trails (slug, title, subtitle, description, level_label, sort) VALUES (?, ?, ?, ?, ?, ?)",
-    );
-    const insCourse = db.prepare(
-      "INSERT INTO courses (slug, trail_id, title, summary, description, skills, is_premium, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    );
-    const insModule = db.prepare("INSERT INTO modules (course_id, title, sort) VALUES (?, ?, ?)");
-    const insLesson = db.prepare(
-      "INSERT INTO lessons (module_id, title, content, exercise, materials, duration_min, is_free_preview, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    );
-    const trailIds = new Map<string, number>();
+  // Tabelas vazias: IDs explícitos permitem inserir tudo em um único lote atômico.
+  const stmts: InStatement[] = [];
+  const trailIds = new Map<string, number>();
+  let moduleId = 0;
+  let lessonId = 0;
 
-    SEED_TRAILS.forEach((t, ti) => {
-      const trailId = Number(insTrail.run(t.slug, t.title, t.subtitle, t.description, t.level, ti).lastInsertRowid);
-      trailIds.set(t.slug, trailId);
-      const c = t.course;
-      const courseId = Number(
-        insCourse.run(c.slug, trailId, c.title, c.summary, c.description, c.skills.join(", "), c.premium ? 1 : 0, ti)
-          .lastInsertRowid,
-      );
-      c.modules.forEach((m, mi) => {
-        const moduleId = Number(insModule.run(courseId, m.title, mi).lastInsertRowid);
-        m.lessons.forEach((l, li) => {
-          insLesson.run(
-            moduleId,
-            l.title,
-            l.content,
-            l.exercise,
-            JSON.stringify(l.materials ?? []),
-            l.duration,
-            l.preview ? 1 : 0,
-            li,
-          );
+  SEED_TRAILS.forEach((t, ti) => {
+    const trailId = ti + 1;
+    trailIds.set(t.slug, trailId);
+    stmts.push({
+      sql: "INSERT INTO trails (id, slug, title, subtitle, description, level_label, sort) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      args: [trailId, t.slug, t.title, t.subtitle, t.description, t.level, ti],
+    });
+    const c = t.course;
+    const courseId = ti + 1;
+    stmts.push({
+      sql: "INSERT INTO courses (id, slug, trail_id, title, summary, description, skills, is_premium, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [courseId, c.slug, trailId, c.title, c.summary, c.description, c.skills.join(", "), c.premium ? 1 : 0, ti],
+    });
+    c.modules.forEach((m, mi) => {
+      moduleId++;
+      stmts.push({ sql: "INSERT INTO modules (id, course_id, title, sort) VALUES (?, ?, ?, ?)", args: [moduleId, courseId, m.title, mi] });
+      m.lessons.forEach((l, li) => {
+        lessonId++;
+        stmts.push({
+          sql: "INSERT INTO lessons (id, module_id, title, content, exercise, materials, duration_min, is_free_preview, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          args: [lessonId, moduleId, l.title, l.content, l.exercise, JSON.stringify(l.materials ?? []), l.duration, l.preview ? 1 : 0, li],
         });
       });
     });
+  });
 
-    const insMission = db.prepare(
-      `INSERT INTO missions (slug, trail_id, title, objective, steps, tools, checklist, criteria, est_minutes, difficulty, xp, is_premium, sort)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    SEED_MISSIONS.forEach((m, i) => {
-      insMission.run(
+  SEED_MISSIONS.forEach((m, i) => {
+    stmts.push({
+      sql: `INSERT INTO missions (slug, trail_id, title, objective, steps, tools, checklist, criteria, est_minutes, difficulty, xp, is_premium, sort)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
         m.slug,
         trailIds.get(m.trail) ?? null,
         m.title,
@@ -88,20 +85,23 @@ export function seedIfEmpty(db: DatabaseSync) {
         m.xp,
         m.premium ? 1 : 0,
         i,
-      );
+      ],
     });
+  });
 
-    const insTool = db.prepare(
-      `INSERT INTO tools (name, category, description, use_case, difficulty, pricing, pricing_note, url, is_premium, sort)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    SEED_TOOLS.forEach((t, i) => {
-      insTool.run(t.name, t.category, t.description, t.useCase, t.difficulty, t.pricing, t.pricingNote, t.url, t.premium ? 1 : 0, i);
+  SEED_TOOLS.forEach((t, i) => {
+    stmts.push({
+      sql: `INSERT INTO tools (name, category, description, use_case, difficulty, pricing, pricing_note, url, is_premium, sort)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [t.name, t.category, t.description, t.useCase, t.difficulty, t.pricing, t.pricingNote, t.url, t.premium ? 1 : 0, i],
     });
+  });
 
-    db.exec("COMMIT");
+  try {
+    await db.batch(stmts, "write");
   } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
+    // Outra instância pode ter semeado ao mesmo tempo; só falha se o banco continuar vazio.
+    const again = await db.execute("SELECT COUNT(*) AS n FROM trails");
+    if (Number(again.rows[0][0]) === 0) throw err;
   }
 }

@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Admin · Planos e limites" };
 export default async function AdminSettings({ searchParams }: { searchParams: Flash }) {
   await requireAdmin();
   const flash = await searchParams;
-  const s = allSettings();
+  const s = await allSettings();
   const num = (key: string, label: string) => (
     <div className="field">
       <label htmlFor={key}>{label}</label>

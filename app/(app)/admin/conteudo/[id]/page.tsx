@@ -21,14 +21,14 @@ export default async function AdminCourse({ params, searchParams }: { params: Pr
   const id = intParam((await params).id);
   if (!id) notFound();
   const flash = await searchParams;
-  const c = get<{ id: number; title: string; slug: string; trail_id: number | null; summary: string; description: string; skills: string; is_premium: number; published: number; sort: number }>(
+  const c = await get<{ id: number; title: string; slug: string; trail_id: number | null; summary: string; description: string; skills: string; is_premium: number; published: number; sort: number }>(
     "SELECT * FROM courses WHERE id = ?",
     id,
   );
   if (!c) notFound();
-  const trails = all<{ id: number; title: string }>("SELECT id, title FROM trails ORDER BY sort");
-  const modules = all<{ id: number; title: string; sort: number }>("SELECT id, title, sort FROM modules WHERE course_id = ? ORDER BY sort, id", id);
-  const lessons = all<{ id: number; module_id: number; title: string; is_free_preview: number; video_url: string }>(
+  const trails = await all<{ id: number; title: string }>("SELECT id, title FROM trails ORDER BY sort");
+  const modules = await all<{ id: number; title: string; sort: number }>("SELECT id, title, sort FROM modules WHERE course_id = ? ORDER BY sort, id", id);
+  const lessons = await all<{ id: number; module_id: number; title: string; is_free_preview: number; video_url: string }>(
     "SELECT l.id, l.module_id, l.title, l.is_free_preview, l.video_url FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.course_id = ? ORDER BY l.sort, l.id",
     id,
   );

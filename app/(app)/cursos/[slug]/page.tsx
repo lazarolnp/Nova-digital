@@ -10,16 +10,16 @@ import { Progress } from "@/components/Progress";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const user = await requireOnboardedUser();
-  return { title: getCourse(slug, user.id)?.course.title ?? "Curso" };
+  return { title: (await getCourse(slug, user.id))?.course.title ?? "Curso" };
 }
 
 export default async function CoursePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const user = await requireOnboardedUser();
-  const data = getCourse(slug, user.id);
+  const data = await getCourse(slug, user.id);
   if (!data) notFound();
   const { course, modules, lessons, missions } = data;
-  const plan = planOf(user);
+  const plan = await planOf(user);
   const done = lessons.filter((l) => l.completed).length;
   const pct = lessons.length ? (done / lessons.length) * 100 : 0;
   const nextLesson = lessons.find((l) => !l.completed && canAccessLesson(plan, course.is_premium, l.is_free_preview));

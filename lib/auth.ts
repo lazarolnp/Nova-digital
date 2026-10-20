@@ -43,7 +43,7 @@ function hashToken(token: string) {
 export async function createSession(userId: number) {
   const token = crypto.randomBytes(32).toString("base64url");
   const expires = new Date(Date.now() + SESSION_DAYS * 86400_000);
-  run("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)", hashToken(token), userId, expires.toISOString());
+  await run("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)", hashToken(token), userId, expires.toISOString());
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -57,7 +57,7 @@ export async function createSession(userId: number) {
 export async function destroySession() {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
-  if (token) run("DELETE FROM sessions WHERE id = ?", hashToken(token));
+  if (token) await run("DELETE FROM sessions WHERE id = ?", hashToken(token));
   store.delete(SESSION_COOKIE);
 }
 
@@ -65,7 +65,7 @@ export const getUser = cache(async (): Promise<User | null> => {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  const user = get<User>(
+  const user = await get<User>(
     `SELECT ${USER_COLUMNS} FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.id = ? AND s.expires_at > ?`,
     hashToken(token),
@@ -103,17 +103,17 @@ export async function clientKey(email: string) {
   return `${ip}|${email.toLowerCase()}`;
 }
 
-export function isRateLimited(key: string) {
+export async function isRateLimited(key: string) {
   const since = new Date(Date.now() - WINDOW_MIN * 60_000).toISOString();
-  run("DELETE FROM login_attempts WHERE at < ?", since);
-  const row = get<{ n: number }>("SELECT COUNT(*) AS n FROM login_attempts WHERE key = ? AND at >= ?", key, since);
+  await run("DELETE FROM login_attempts WHERE at < ?", since);
+  const row = await get<{ n: number }>("SELECT COUNT(*) AS n FROM login_attempts WHERE key = ? AND at >= ?", key, since);
   return (row?.n ?? 0) >= MAX_ATTEMPTS;
 }
 
-export function recordFailedAttempt(key: string) {
-  run("INSERT INTO login_attempts (key, at) VALUES (?, ?)", key, new Date().toISOString());
+export async function recordFailedAttempt(key: string) {
+  await run("INSERT INTO login_attempts (key, at) VALUES (?, ?)", key, new Date().toISOString());
 }
 
-export function clearAttempts(key: string) {
-  run("DELETE FROM login_attempts WHERE key = ?", key);
+export async function clearAttempts(key: string) {
+  await run("DELETE FROM login_attempts WHERE key = ?", key);
 }

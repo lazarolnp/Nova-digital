@@ -34,48 +34,48 @@ export async function POST(req: Request) {
   let conversationId = parsed.data.conversationId;
 
   if (conversationId) {
-    const own = get("SELECT id FROM conversations WHERE id = ? AND user_id = ?", conversationId, user.id);
+    const own = await get("SELECT id FROM conversations WHERE id = ? AND user_id = ?", conversationId, user.id);
     if (!own) return json(404, { error: "Conversa não encontrada." });
   }
 
-  const plan = planOf(user);
-  if (!consumeAiQuota(user.id, plan)) {
+  const plan = await planOf(user);
+  if (!await consumeAiQuota(user.id, plan)) {
     return json(429, {
-      error: `Você usou as ${limit(plan, "ai_messages_per_day")} mensagens de hoje do seu plano. O limite renova amanhã.`,
+      error: `Você usou as ${await limit(plan, "ai_messages_per_day")} mensagens de hoje do seu plano. O limite renova amanhã.`,
     });
   }
 
   if (!conversationId) {
     const title = message.length > 60 ? `${message.slice(0, 57)}...` : message;
-    conversationId = Number(run("INSERT INTO conversations (user_id, title) VALUES (?, ?)", user.id, title).lastInsertRowid);
+    conversationId = Number((await run("INSERT INTO conversations (user_id, title) VALUES (?, ?)", user.id, title)).lastInsertRowid);
   }
-  run("INSERT INTO chat_messages (conversation_id, role, content) VALUES (?, 'user', ?)", conversationId, message);
-  run("UPDATE conversations SET updated_at = datetime('now') WHERE id = ?", conversationId);
+  await run("INSERT INTO chat_messages (conversation_id, role, content) VALUES (?, 'user', ?)", conversationId, message);
+  await run("UPDATE conversations SET updated_at = datetime('now') WHERE id = ?", conversationId);
 
   // Últimas 30 mensagens (ordem cronológica); a conversa precisa começar com o usuário.
-  const history = all<{ role: "user" | "assistant"; content: string }>(
+  const history = await all<{ role: "user" | "assistant"; content: string }>(
     "SELECT role, content FROM (SELECT id, role, content FROM chat_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 30) ORDER BY id",
     conversationId,
   );
   while (history.length && history[0].role !== "user") history.shift();
 
-  const context = userContext(user, plan);
+  const context = await userContext(user, plan);
   const convId = conversationId;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (obj: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(obj)}\n`));
-      send({ type: "meta", conversationId: convId, used: aiUsageToday(user.id), limit: limit(plan, "ai_messages_per_day") });
+      send({ type: "meta", conversationId: convId, used: await aiUsageToday(user.id), limit: await limit(plan, "ai_messages_per_day") });
       try {
         const text = await streamChat(history, context, (chunk) => send({ type: "text", text: chunk }));
-        if (text.trim()) run("INSERT INTO chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)", convId, text);
+        if (text.trim()) await run("INSERT INTO chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)", convId, text);
         send({ type: "done" });
       } catch (err) {
         console.error("[assistente]", err);
-        refundAiQuota(user.id);
+        await refundAiQuota(user.id);
         // Remove a pergunta sem resposta para manter a conversa alternando entre usuário e assistente.
-        run(
+        await run(
           "DELETE FROM chat_messages WHERE id = (SELECT id FROM chat_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1) AND role = 'user'",
           convId,
         );

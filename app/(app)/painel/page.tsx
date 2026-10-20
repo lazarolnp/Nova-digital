@@ -15,21 +15,21 @@ export const metadata: Metadata = { title: "Painel" };
 
 export default async function DashboardPage() {
   const user = await requireOnboardedUser();
-  const onboarding = get<{ area: string }>("SELECT area FROM onboarding WHERE user_id = ?", user.id);
+  const onboarding = await get<{ area: string }>("SELECT area FROM onboarding WHERE user_id = ?", user.id);
   const focusTrail = AREA_TO_TRAIL[onboarding?.area ?? "indefinido"];
-  const focusCourse = get<{ id: number }>("SELECT c.id FROM courses c JOIN trails t ON t.id = c.trail_id WHERE t.slug = ?", focusTrail);
+  const focusCourse = await get<{ id: number }>("SELECT c.id FROM courses c JOIN trails t ON t.id = c.trail_id WHERE t.slug = ?", focusTrail);
 
-  const xp = totalXp(user.id);
+  const xp = await totalXp(user.id);
   const level = levelFor(xp);
-  const stats = userStats(user.id);
-  const stage = journeyStage(user.id, focusCourse?.id ?? null);
-  const plan = currentPlan(user.id);
-  const courses = listCourses(user.id);
+  const stats = await userStats(user.id);
+  const stage = await journeyStage(user.id, focusCourse?.id ?? null);
+  const plan = await currentPlan(user.id);
+  const courses = await listCourses(user.id);
   const inProgress = courses.filter((c) => c.done > 0 && c.done < c.lessons);
   const completed = courses.filter((c) => c.lessons > 0 && c.done === c.lessons);
   const focus = courses.find((c) => c.id === focusCourse?.id);
   const learning = [...inProgress, ...(focus && !inProgress.includes(focus) && focus.done < focus.lessons ? [focus] : [])];
-  const projects = all<{ id: number; name: string; status: string; category: string; steps: number; done: number }>(
+  const projects = await all<{ id: number; name: string; status: string; category: string; steps: number; done: number }>(
     `SELECT p.id, p.name, p.status, p.category, COUNT(s.id) AS steps, COALESCE(SUM(s.done), 0) AS done
      FROM projects p LEFT JOIN project_steps s ON s.project_id = p.id
      WHERE p.user_id = ? AND p.status <> 'concluido' GROUP BY p.id ORDER BY p.updated_at DESC LIMIT 3`,
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   const weekItems = plan?.items.filter((i) => i.week === plan.week) ?? [];
   const next = plan?.items.find((i) => !i.done_at && i.day >= plan.today) ?? plan?.items.find((i) => !i.done_at);
   const skills = Array.from(new Set(learning.concat(completed).flatMap((c) => c.skills.split(",").map((s) => s.trim()).filter(Boolean)))).slice(0, 8);
-  const chart = xpByDay(user.id, 14);
+  const chart = await xpByDay(user.id, 14);
 
   return (
     <>

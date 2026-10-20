@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { get, run } from "@/lib/db";
+import { batch, get, run } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { setSetting } from "@/lib/access";
 import { notify } from "@/lib/progress";
@@ -60,9 +60,9 @@ export async function createCourseAction(fd: FormData) {
   const parsed = courseFromForm(fd);
   if (!parsed.success) back("/admin/conteudo", { erro: firstError(parsed.error) });
   const c = parsed.data;
-  if (get("SELECT id FROM courses WHERE slug = ?", c.slug)) back("/admin/conteudo", { erro: "Já existe um curso com este identificador." });
-  const sort = get<{ n: number }>("SELECT COALESCE(MAX(sort), 0) + 1 AS n FROM courses")?.n ?? 0;
-  const id = run(
+  if (await get("SELECT id FROM courses WHERE slug = ?", c.slug)) back("/admin/conteudo", { erro: "Já existe um curso com este identificador." });
+  const sort = (await get<{ n: number }>("SELECT COALESCE(MAX(sort), 0) + 1 AS n FROM courses"))?.n ?? 0;
+  const id = (await run(
     "INSERT INTO courses (slug, trail_id, title, summary, description, skills, is_premium, published, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     c.slug,
     c.trail_id,
@@ -73,7 +73,7 @@ export async function createCourseAction(fd: FormData) {
     bool(fd, "is_premium"),
     bool(fd, "published"),
     sort,
-  ).lastInsertRowid;
+  )).lastInsertRowid;
   back(`/admin/conteudo/${id}`, { ok: "Curso criado." });
 }
 
@@ -83,8 +83,8 @@ export async function updateCourseAction(courseId: number, fd: FormData) {
   const parsed = courseFromForm(fd);
   if (!parsed.success) back(path, { erro: firstError(parsed.error) });
   const c = parsed.data;
-  if (get("SELECT id FROM courses WHERE slug = ? AND id <> ?", c.slug, courseId)) back(path, { erro: "Já existe um curso com este identificador." });
-  run(
+  if (await get("SELECT id FROM courses WHERE slug = ? AND id <> ?", c.slug, courseId)) back(path, { erro: "Já existe um curso com este identificador." });
+  await run(
     "UPDATE courses SET slug = ?, trail_id = ?, title = ?, summary = ?, description = ?, skills = ?, is_premium = ?, published = ?, sort = ? WHERE id = ?",
     c.slug,
     c.trail_id,
@@ -103,7 +103,12 @@ export async function updateCourseAction(courseId: number, fd: FormData) {
 export async function deleteCourseAction(courseId: number, fd: FormData) {
   await requireAdmin();
   if (str(fd, "confirm") !== "EXCLUIR") back(`/admin/conteudo/${courseId}`, { erro: "Digite EXCLUIR para confirmar a exclusão." });
-  run("DELETE FROM courses WHERE id = ?", courseId);
+  await batch([
+    { sql: "DELETE FROM lesson_progress WHERE lesson_id IN (SELECT l.id FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.course_id = ?)", args: [courseId] },
+    { sql: "DELETE FROM lessons WHERE module_id IN (SELECT id FROM modules WHERE course_id = ?)", args: [courseId] },
+    { sql: "DELETE FROM modules WHERE course_id = ?", args: [courseId] },
+    { sql: "DELETE FROM courses WHERE id = ?", args: [courseId] },
+  ]);
   back("/admin/conteudo", { ok: "Curso excluído." });
 }
 
@@ -111,8 +116,8 @@ export async function addModuleAction(courseId: number, fd: FormData) {
   await requireAdmin();
   const title = str(fd, "title").trim();
   if (!title || title.length > 140) back(`/admin/conteudo/${courseId}`, { erro: "Informe o título do módulo (até 140 caracteres)." });
-  const sort = get<{ n: number }>("SELECT COALESCE(MAX(sort), -1) + 1 AS n FROM modules WHERE course_id = ?", courseId)?.n ?? 0;
-  run("INSERT INTO modules (course_id, title, sort) VALUES (?, ?, ?)", courseId, title, sort);
+  const sort = (await get<{ n: number }>("SELECT COALESCE(MAX(sort), -1) + 1 AS n FROM modules WHERE course_id = ?", courseId))?.n ?? 0;
+  await run("INSERT INTO modules (course_id, title, sort) VALUES (?, ?, ?)", courseId, title, sort);
   back(`/admin/conteudo/${courseId}`, { ok: "Módulo adicionado." });
 }
 
@@ -120,13 +125,20 @@ export async function updateModuleAction(moduleId: number, courseId: number, fd:
   await requireAdmin();
   const title = str(fd, "title").trim();
   if (!title || title.length > 140) back(`/admin/conteudo/${courseId}`, { erro: "Título do módulo inválido." });
-  run("UPDATE modules SET title = ?, sort = ? WHERE id = ? AND course_id = ?", title, int(str(fd, "sort"), 0, 999, 0), moduleId, courseId);
+  await run("UPDATE modules SET title = ?, sort = ? WHERE id = ? AND course_id = ?", title, int(str(fd, "sort"), 0, 999, 0), moduleId, courseId);
   back(`/admin/conteudo/${courseId}`, { ok: "Módulo salvo." });
 }
 
 export async function deleteModuleAction(moduleId: number, courseId: number) {
   await requireAdmin();
-  run("DELETE FROM modules WHERE id = ? AND course_id = ?", moduleId, courseId);
+  await batch([
+    {
+      sql: "DELETE FROM lesson_progress WHERE lesson_id IN (SELECT l.id FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.id = ? AND m.course_id = ?)",
+      args: [moduleId, courseId],
+    },
+    { sql: "DELETE FROM lessons WHERE module_id IN (SELECT id FROM modules WHERE id = ? AND course_id = ?)", args: [moduleId, courseId] },
+    { sql: "DELETE FROM modules WHERE id = ? AND course_id = ?", args: [moduleId, courseId] },
+  ]);
   back(`/admin/conteudo/${courseId}`, { ok: "Módulo excluído." });
 }
 
@@ -145,8 +157,8 @@ export async function createLessonAction(moduleId: number, courseId: number, fd:
   await requireAdmin();
   const title = str(fd, "title").trim();
   if (!title || title.length > 160) back(`/admin/conteudo/${courseId}`, { erro: "Informe o título da aula." });
-  const sort = get<{ n: number }>("SELECT COALESCE(MAX(sort), -1) + 1 AS n FROM lessons WHERE module_id = ?", moduleId)?.n ?? 0;
-  const id = run("INSERT INTO lessons (module_id, title, sort) VALUES (?, ?, ?)", moduleId, title, sort).lastInsertRowid;
+  const sort = (await get<{ n: number }>("SELECT COALESCE(MAX(sort), -1) + 1 AS n FROM lessons WHERE module_id = ?", moduleId))?.n ?? 0;
+  const id = (await run("INSERT INTO lessons (module_id, title, sort) VALUES (?, ?, ?)", moduleId, title, sort)).lastInsertRowid;
   back(`/admin/aulas/${id}`, { ok: "Aula criada. Preencha o conteúdo." });
 }
 
@@ -163,13 +175,13 @@ export async function updateLessonAction(lessonId: number, fd: FormData) {
   const materials = parseMaterials(str(fd, "materials"));
   if (!materials) back(path, { erro: "Materiais: use uma linha por item no formato Título | https://link" });
   const moduleId = Number(str(fd, "module_id"));
-  const owner = get<{ course_id: number }>(
+  const owner = await get<{ course_id: number }>(
     "SELECT m2.course_id FROM lessons l JOIN modules m ON m.id = l.module_id JOIN modules m2 ON m2.course_id = m.course_id WHERE l.id = ? AND m2.id = ?",
     lessonId,
     moduleId,
   );
   if (!owner) back(path, { erro: "Módulo inválido." });
-  run(
+  await run(
     "UPDATE lessons SET module_id = ?, title = ?, content = ?, exercise = ?, materials = ?, video_url = ?, duration_min = ?, is_free_preview = ?, sort = ? WHERE id = ?",
     moduleId,
     title,
@@ -187,8 +199,11 @@ export async function updateLessonAction(lessonId: number, fd: FormData) {
 
 export async function deleteLessonAction(lessonId: number) {
   await requireAdmin();
-  const course = get<{ course_id: number }>("SELECT m.course_id FROM lessons l JOIN modules m ON m.id = l.module_id WHERE l.id = ?", lessonId);
-  run("DELETE FROM lessons WHERE id = ?", lessonId);
+  const course = await get<{ course_id: number }>("SELECT m.course_id FROM lessons l JOIN modules m ON m.id = l.module_id WHERE l.id = ?", lessonId);
+  await batch([
+    { sql: "DELETE FROM lesson_progress WHERE lesson_id = ?", args: [lessonId] },
+    { sql: "DELETE FROM lessons WHERE id = ?", args: [lessonId] },
+  ]);
   back(course ? `/admin/conteudo/${course.course_id}` : "/admin/conteudo", { ok: "Aula excluída." });
 }
 
@@ -211,7 +226,7 @@ export async function saveMissionAction(missionId: number | null, fd: FormData) 
   });
   if (!parsed.success) back(path, { erro: firstError(parsed.error) });
   const m = parsed.data;
-  if (get("SELECT id FROM missions WHERE slug = ? AND id <> ?", m.slug, missionId ?? 0)) back(path, { erro: "Já existe uma missão com este identificador." });
+  if (await get("SELECT id FROM missions WHERE slug = ? AND id <> ?", m.slug, missionId ?? 0)) back(path, { erro: "Já existe uma missão com este identificador." });
   const steps = lines(str(fd, "steps"));
   const checklist = lines(str(fd, "checklist"));
   const criteria = lines(str(fd, "criteria"));
@@ -235,7 +250,7 @@ export async function saveMissionAction(missionId: number | null, fd: FormData) 
   ] as const;
   if (missionId) {
     // Se o checklist mudar de tamanho, o progresso salvo se ajusta automaticamente na próxima marcação.
-    run(
+    await run(
       `UPDATE missions SET slug = ?, trail_id = ?, title = ?, objective = ?, steps = ?, tools = ?, checklist = ?, criteria = ?,
        est_minutes = ?, difficulty = ?, xp = ?, is_premium = ?, published = ?, sort = ? WHERE id = ?`,
       ...values,
@@ -243,17 +258,20 @@ export async function saveMissionAction(missionId: number | null, fd: FormData) 
     );
     back(path, { ok: "Missão salva." });
   }
-  const id = run(
+  const id = (await run(
     `INSERT INTO missions (slug, trail_id, title, objective, steps, tools, checklist, criteria, est_minutes, difficulty, xp, is_premium, published, sort)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ...values,
-  ).lastInsertRowid;
+  )).lastInsertRowid;
   back(`/admin/missoes/${id}`, { ok: "Missão criada." });
 }
 
 export async function deleteMissionAction(missionId: number) {
   await requireAdmin();
-  run("DELETE FROM missions WHERE id = ?", missionId);
+  await batch([
+    { sql: "DELETE FROM mission_progress WHERE mission_id = ?", args: [missionId] },
+    { sql: "DELETE FROM missions WHERE id = ?", args: [missionId] },
+  ]);
   back("/admin/missoes", { ok: "Missão excluída." });
 }
 
@@ -276,13 +294,13 @@ export async function saveToolAction(toolId: number | null, fd: FormData) {
   const t = parsed.data;
   const values = [t.name, t.category, t.description, t.use_case, t.difficulty, t.pricing, t.pricing_note, t.url, bool(fd, "is_premium")] as const;
   if (toolId) {
-    run(
+    await run(
       "UPDATE tools SET name = ?, category = ?, description = ?, use_case = ?, difficulty = ?, pricing = ?, pricing_note = ?, url = ?, is_premium = ? WHERE id = ?",
       ...values,
       toolId,
     );
   } else {
-    run(
+    await run(
       "INSERT INTO tools (name, category, description, use_case, difficulty, pricing, pricing_note, url, is_premium, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 999)",
       ...values,
     );
@@ -292,7 +310,7 @@ export async function saveToolAction(toolId: number | null, fd: FormData) {
 
 export async function deleteToolAction(toolId: number) {
   await requireAdmin();
-  run("DELETE FROM tools WHERE id = ?", toolId);
+  await run("DELETE FROM tools WHERE id = ?", toolId);
   back("/admin/ferramentas", { ok: "Ferramenta removida." });
 }
 
@@ -302,7 +320,7 @@ export async function setRoleAction(userId: number, fd: FormData) {
   const role = str(fd, "role");
   if (role !== "user" && role !== "admin") back("/admin/usuarios", { erro: "Papel inválido." });
   if (userId === admin.id && role !== "admin") back("/admin/usuarios", { erro: "Você não pode remover o seu próprio acesso de administrador." });
-  run("UPDATE users SET role = ? WHERE id = ?", role, userId);
+  await run("UPDATE users SET role = ? WHERE id = ?", role, userId);
   back("/admin/usuarios", { ok: "Papel atualizado." });
 }
 
@@ -315,15 +333,15 @@ export async function grantPremiumAction(userId: number, fd: FormData) {
     if (Number.isNaN(d.getTime()) || d.getTime() < Date.now()) back("/admin/usuarios", { erro: "Data de validade inválida." });
     end = d.toISOString();
   }
-  run("UPDATE subscriptions SET status = 'canceled' WHERE user_id = ? AND status = 'active'", userId);
-  run("INSERT INTO subscriptions (user_id, plan, status, provider, current_period_end) VALUES (?, 'premium', 'active', 'manual', ?)", userId, end);
-  notify(userId, "sistema", "Seu acesso Premium foi liberado", "Aproveite o catálogo completo. Refaça seu plano para incluir o conteúdo premium.", "/onboarding");
+  await run("UPDATE subscriptions SET status = 'canceled' WHERE user_id = ? AND status = 'active'", userId);
+  await run("INSERT INTO subscriptions (user_id, plan, status, provider, current_period_end) VALUES (?, 'premium', 'active', 'manual', ?)", userId, end);
+  await notify(userId, "sistema", "Seu acesso Premium foi liberado", "Aproveite o catálogo completo. Refaça seu plano para incluir o conteúdo premium.", "/onboarding");
   back("/admin/usuarios", { ok: "Premium concedido." });
 }
 
 export async function revokePremiumAction(userId: number) {
   await requireAdmin();
-  run("UPDATE subscriptions SET status = 'canceled' WHERE user_id = ? AND status = 'active'", userId);
+  await run("UPDATE subscriptions SET status = 'canceled' WHERE user_id = ? AND status = 'active'", userId);
   back("/admin/usuarios", { ok: "Premium revogado." });
 }
 
@@ -335,14 +353,14 @@ export async function saveSettingsAction(fd: FormData) {
   for (const key of LIMIT_KEYS) {
     const v = str(fd, key);
     if (!/^\d{1,5}$/.test(v)) back("/admin/configuracoes", { erro: "Os limites devem ser números inteiros entre 0 e 99999." });
-    setSetting(key, v);
+    await setSetting(key, v);
   }
   const price = str(fd, "billing.premium_price_label").trim();
   const checkout = str(fd, "billing.checkout_url").trim();
   if (price.length > 60) back("/admin/configuracoes", { erro: "O texto de preço pode ter no máximo 60 caracteres." });
   if (checkout && !httpUrl.test(checkout)) back("/admin/configuracoes", { erro: "O link de checkout deve começar com https://" });
-  setSetting("billing.premium_price_label", price);
-  setSetting("billing.checkout_url", checkout);
+  await setSetting("billing.premium_price_label", price);
+  await setSetting("billing.checkout_url", checkout);
   back("/admin/configuracoes", { ok: "Configurações salvas." });
 }
 
@@ -353,9 +371,9 @@ export async function replyTicketAction(ticketId: number, fd: FormData) {
   const status = str(fd, "status");
   if (!["aberto", "respondido", "fechado"].includes(status)) back("/admin/chamados", { erro: "Status inválido." });
   if (reply.length > 4000) back("/admin/chamados", { erro: "Resposta muito longa." });
-  const ticket = get<{ user_id: number }>("SELECT user_id FROM tickets WHERE id = ?", ticketId);
+  const ticket = await get<{ user_id: number }>("SELECT user_id FROM tickets WHERE id = ?", ticketId);
   if (!ticket) back("/admin/chamados", { erro: "Chamado não encontrado." });
-  run("UPDATE tickets SET reply = ?, status = ? WHERE id = ?", reply, status, ticketId);
-  if (reply) notify(ticket.user_id, "sistema", `Seu chamado #${ticketId} foi respondido`, "", "/suporte");
+  await run("UPDATE tickets SET reply = ?, status = ? WHERE id = ?", reply, status, ticketId);
+  if (reply) await notify(ticket.user_id, "sistema", `Seu chamado #${ticketId} foi respondido`, "", "/suporte");
   back("/admin/chamados", { ok: "Chamado atualizado." });
 }

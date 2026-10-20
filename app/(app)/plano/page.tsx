@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Plano de 30 dias" };
 export default async function PlanPage({ searchParams }: { searchParams: Promise<{ novo?: string }> }) {
   const user = await requireOnboardedUser();
   const { novo } = await searchParams;
-  const plan = currentPlan(user.id);
+  const plan = await currentPlan(user.id);
   const refazer = (
     <Link href="/onboarding" className="btn">
       <RefreshCw size={15} /> Refazer plano

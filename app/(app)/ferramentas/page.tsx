@@ -20,8 +20,8 @@ const ORDER = [
 
 export default async function ToolsPage() {
   const user = await requireOnboardedUser();
-  const plan = planOf(user);
-  const tools: ToolView[] = listTools().map((t) => {
+  const plan = await planOf(user);
+  const tools: ToolView[] = (await listTools()).map((t) => {
     const locked = !canAccessPremium(plan, t.is_premium);
     return {
       id: t.id,
