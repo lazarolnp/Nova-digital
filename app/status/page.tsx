@@ -43,6 +43,7 @@ export default async function StatusPage() {
     { name: "ADMIN_EMAIL", ok: Boolean(process.env.ADMIN_EMAIL), required: false },
     { name: "ANTHROPIC_API_KEY", ok: Boolean(process.env.ANTHROPIC_API_KEY), required: false },
     { name: "APP_URL", ok: Boolean(process.env.APP_URL), required: false },
+    { name: "KIWIFY_WEBHOOK_TOKEN", ok: Boolean(process.env.KIWIFY_WEBHOOK_TOKEN), required: false },
   ];
   let problem: { title: string; fix: string } | null = null;
   let counts: { label: string; n: number }[] = [];

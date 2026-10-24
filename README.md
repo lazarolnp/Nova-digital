@@ -58,6 +58,7 @@ A Vercel não tem disco permanente, então o banco fica no **Turso** (SQLite hos
 | `AI_MODEL` / `AI_EFFORT` | Modelo e profundidade de raciocínio do assistente |
 | `APP_URL` | URL pública, usada na verificação de origem da API |
 | `ADMIN_EMAIL` | E-mail que recebe papel de administrador no cadastro |
+| `KIWIFY_WEBHOOK_TOKEN` | Token do webhook da Kiwify (liberação automática do Premium) |
 | `SUPPORT_EMAIL` | E-mail exibido na página de Suporte (opcional) |
 
 ## Páginas
@@ -93,10 +94,12 @@ A Vercel não tem disco permanente, então o banco fica no **Turso** (SQLite hos
 - **IA** (`lib/ai.ts`, `app/api/assistente/route.ts`): SDK oficial da Anthropic, streaming, contexto do aluno e catálogo, limite diário configurável por plano, verificação de origem contra CSRF.
 - **Visual**: tokens CSS com tema escuro (padrão) e claro, responsivo, baseado na identidade dos prints de referência.
 
-### Pagamentos (preparado)
+### Pagamentos (Kiwify)
 
-Assinaturas ficam na tabela `subscriptions` (`provider`, `provider_ref`, `status`, `current_period_end`). Hoje:
+O acesso Premium é liberado automaticamente quando a Kiwify confirma o pagamento:
 
-- O administrador concede ou revoga o Premium manualmente (com validade opcional).
-- Em **Admin → Planos e limites** é possível definir o texto de preço e o link de checkout do provedor. Sem link, a página de Planos registra interessados na lista de espera.
-- Para integrar um provedor (Stripe, Mercado Pago etc.), crie um webhook que insira/atualize linhas em `subscriptions`; `planOf()` em `lib/access.ts` já considera assinaturas ativas e não expiradas.
+1. A Kiwify envia um webhook para `/api/pagamentos/kiwify`. O site confere a assinatura HMAC-SHA1 com o token (`KIWIFY_WEBHOOK_TOKEN`) e recusa avisos falsos.
+2. O acesso fica vinculado ao **e-mail do comprador** (tabela `external_subscriptions`). Quem compra antes de criar conta recebe o Premium ao se cadastrar com o mesmo e-mail.
+3. Renovação estende o acesso; cancelamento mantém até o fim do período pago; reembolso e chargeback removem na hora.
+
+Configuração e registro dos eventos recebidos: **Admin → Pagamentos**. O administrador também pode conceder o Premium manualmente em **Admin → Usuários**.

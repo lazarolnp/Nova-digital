@@ -42,7 +42,7 @@ export default async function AdminSettings({ searchParams }: { searchParams: Fl
             <input id="price" name="billing.premium_price_label" className="input" defaultValue={s["billing.premium_price_label"]} maxLength={60} />
           </div>
           <div className="field">
-            <label htmlFor="checkout">Link de checkout do provedor de pagamento (https://)</label>
+            <label htmlFor="checkout">Link de checkout do Premium na Kiwify (https://pay.kiwify.com.br/...)</label>
             <input id="checkout" name="billing.checkout_url" className="input" defaultValue={s["billing.checkout_url"]} />
           </div>
         </div>

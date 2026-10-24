@@ -7,6 +7,7 @@ const TABS = [
   { href: "/admin/ferramentas", label: "Ferramentas" },
   { href: "/admin/usuarios", label: "Usuários" },
   { href: "/admin/chamados", label: "Chamados" },
+  { href: "/admin/pagamentos", label: "Pagamentos" },
   { href: "/admin/configuracoes", label: "Planos e limites" },
 ];
 

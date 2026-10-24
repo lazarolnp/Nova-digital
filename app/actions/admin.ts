@@ -7,6 +7,7 @@ import { batch, get, run } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { setSetting } from "@/lib/access";
 import { notify } from "@/lib/progress";
+import { productMappings } from "@/lib/payments";
 import { firstError, str } from "@/lib/validation";
 
 function back(path: string, params: { ok?: string; erro?: string }): never {
@@ -376,4 +377,24 @@ export async function replyTicketAction(ticketId: number, fd: FormData) {
   await run("UPDATE tickets SET reply = ?, status = ? WHERE id = ?", reply, status, ticketId);
   if (reply) await notify(ticket.user_id, "sistema", `Seu chamado #${ticketId} foi respondido`, "", "/suporte");
   back("/admin/chamados", { ok: "Chamado atualizado." });
+}
+
+// ---- Pagamentos (Kiwify) ----
+export async function addProductMappingAction(fd: FormData) {
+  await requireAdmin();
+  const ref = str(fd, "ref").trim();
+  const label = str(fd, "label").trim().slice(0, 80);
+  if (!/^[\w-]{3,80}$/.test(ref)) back("/admin/pagamentos", { erro: "Cole o ID do produto ou do plano da Kiwify (letras, números e hífens)." });
+  const list = await productMappings();
+  if (list.some((m) => m.ref === ref)) back("/admin/pagamentos", { erro: "Este ID já está cadastrado." });
+  list.push({ ref, label: label || ref, plan: "premium" });
+  await setSetting("kiwify.product_map", JSON.stringify(list));
+  back("/admin/pagamentos", { ok: "Produto vinculado ao plano Premium." });
+}
+
+export async function removeProductMappingAction(ref: string) {
+  await requireAdmin();
+  const list = (await productMappings()).filter((m) => m.ref !== ref);
+  await setSetting("kiwify.product_map", JSON.stringify(list));
+  back("/admin/pagamentos", { ok: "Vínculo removido." });
 }

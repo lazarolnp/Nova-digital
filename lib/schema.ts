@@ -224,6 +224,31 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 );
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id, status);
 
+-- Assinaturas vindas de plataformas de pagamento (ex.: Kiwify), vinculadas pelo e-mail do comprador.
+-- Funciona mesmo se a pessoa comprar antes de criar a conta.
+CREATE TABLE IF NOT EXISTS external_subscriptions (
+  provider TEXT NOT NULL,
+  ref TEXT NOT NULL,
+  email TEXT NOT NULL COLLATE NOCASE,
+  plan TEXT NOT NULL DEFAULT 'premium',
+  status TEXT NOT NULL CHECK (status IN ('active', 'canceled', 'revoked')),
+  access_until TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (provider, ref)
+);
+CREATE INDEX IF NOT EXISTS idx_external_subscriptions_email ON external_subscriptions(email);
+
+CREATE TABLE IF NOT EXISTS payment_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  provider TEXT NOT NULL,
+  event_type TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
+  product_ref TEXT NOT NULL DEFAULT '',
+  result TEXT NOT NULL DEFAULT '',
+  raw TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS waitlist (
   user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))

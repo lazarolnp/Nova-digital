@@ -34,10 +34,25 @@ export async function activeSubscription(userId: number): Promise<Subscription |
   );
 }
 
+/** Assinatura válida vinda de uma plataforma de pagamento (Kiwify), pelo e-mail do comprador. */
+export async function activeExternalSubscription(email: string) {
+  const now = new Date().toISOString();
+  return get<{ plan: string; status: string; access_until: string | null }>(
+    `SELECT plan, status, access_until FROM external_subscriptions WHERE email = ? AND (
+       (status = 'active' AND (access_until IS NULL OR access_until > ?)) OR
+       (status = 'canceled' AND access_until > ?))
+     ORDER BY access_until IS NULL DESC, access_until DESC LIMIT 1`,
+    email,
+    now,
+    now,
+  );
+}
+
 /** Plano efetivo do usuário. Administradores têm acesso completo para revisar conteúdo. */
-export async function planOf(user: Pick<User, "id" | "role">): Promise<PlanId> {
+export async function planOf(user: Pick<User, "id" | "role" | "email">): Promise<PlanId> {
   if (user.role === "admin") return "premium";
-  return await activeSubscription(user.id) ? "premium" : "free";
+  if (await activeSubscription(user.id)) return "premium";
+  return (await activeExternalSubscription(user.email)) ? "premium" : "free";
 }
 
 export async function limit(plan: PlanId, name: "ai_messages_per_day" | "max_projects"): Promise<number> {

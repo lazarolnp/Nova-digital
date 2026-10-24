@@ -10,14 +10,18 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
   const me = await requireAdmin();
   const { q, ...flash } = await searchParams;
   const term = (q ?? "").trim().slice(0, 80);
-  const users = await all<{ id: number; name: string; email: string; role: string; created_at: string; premium: number; until: string | null; waitlist: number; xp: number }>(
+  const now = new Date().toISOString();
+  const users = await all<{ id: number; name: string; email: string; role: string; created_at: string; premium: number; until: string | null; kiwify: string | null; waitlist: number; xp: number }>(
     `SELECT u.id, u.name, u.email, u.role, u.created_at,
        EXISTS (SELECT 1 FROM subscriptions s WHERE s.user_id = u.id AND s.status = 'active' AND (s.current_period_end IS NULL OR s.current_period_end > ?)) AS premium,
        (SELECT s.current_period_end FROM subscriptions s WHERE s.user_id = u.id AND s.status = 'active' ORDER BY s.id DESC LIMIT 1) AS until,
+       (SELECT COALESCE(es.access_until, 'sem-fim') FROM external_subscriptions es WHERE es.email = u.email AND (
+          (es.status = 'active' AND (es.access_until IS NULL OR es.access_until > ?)) OR (es.status = 'canceled' AND es.access_until > ?))
+        ORDER BY es.access_until DESC LIMIT 1) AS kiwify,
        EXISTS (SELECT 1 FROM waitlist w WHERE w.user_id = u.id) AS waitlist,
        (SELECT COALESCE(SUM(xp), 0) FROM xp_events x WHERE x.user_id = u.id) AS xp
      FROM users u ${term ? "WHERE u.name LIKE ? OR u.email LIKE ?" : ""} ORDER BY u.id DESC LIMIT 100`,
-    ...(term ? [new Date().toISOString(), `%${term}%`, `%${term}%`] : [new Date().toISOString()]),
+    ...(term ? [now, now, now, `%${term}%`, `%${term}%`] : [now, now, now]),
   );
   return (
     <>
@@ -61,6 +65,11 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
                   </form>
                 </td>
                 <td>
+                  {u.kiwify ? (
+                    <div className="small" style={{ marginBottom: 6 }}>
+                      <span className="badge badge-success">Kiwify{u.kiwify !== "sem-fim" ? ` até ${new Date(u.kiwify).toLocaleDateString("pt-BR")}` : ""}</span>
+                    </div>
+                  ) : null}
                   {u.premium ? (
                     <div className="row">
                       <span className="badge badge-accent">Premium{u.until ? ` até ${new Date(u.until).toLocaleDateString("pt-BR")}` : ""}</span>
