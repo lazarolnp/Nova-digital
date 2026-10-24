@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Bot, CalendarCheck, CheckCircle2, Compass, FolderKanban, ShieldCheck, Target, Wrench } from "lucide-react";
-import { all } from "@/lib/db";
+import { SEED_TRAILS } from "@/lib/seed";
 import { PublicFooter, PublicNav } from "@/components/PublicNav";
-
-export const dynamic = "force-dynamic";
 
 const STEPS = [
   { icon: Compass, title: "Diagnóstico rápido", text: "Você responde seis perguntas sobre conhecimento, tempo, orçamento e objetivo." },
@@ -12,10 +10,8 @@ const STEPS = [
   { icon: FolderKanban, title: "Monte seu portfólio", text: "Seus trabalhos viram projetos organizados que você pode apresentar." },
 ];
 
-export default async function LandingPage() {
-  const trails = await all<{ slug: string; title: string; subtitle: string; level_label: string }>(
-    "SELECT slug, title, subtitle, level_label FROM trails ORDER BY sort",
-  );
+export default function LandingPage() {
+  const trails = SEED_TRAILS.map((t) => ({ slug: t.slug, title: t.title, subtitle: t.subtitle, level_label: t.level }));
   return (
     <>
       <PublicNav />

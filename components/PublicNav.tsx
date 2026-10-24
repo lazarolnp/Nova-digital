@@ -3,7 +3,8 @@ import { getUser } from "@/lib/auth";
 import { ThemeToggle } from "./ThemeToggle";
 
 export async function PublicNav() {
-  const user = await getUser();
+  // A página pública continua disponível mesmo se o banco estiver fora do ar.
+  const user = await getUser().catch(() => null);
   return (
     <header className="landing-nav">
       <Link href="/" className="brand" style={{ padding: 0 }}>
