@@ -4,12 +4,14 @@ import { all, get, run } from "@/lib/db";
 import { aiUsageToday, consumeAiQuota, limit, planOf, refundAiQuota } from "@/lib/access";
 import { aiConfigured, friendlyAiError, streamChat, userContext } from "@/lib/ai";
 import { sameOrigin } from "@/lib/origin";
+import { trailAssistant } from "@/lib/seed";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   conversationId: z.number().int().positive().nullable(),
+  trail: z.string().max(60).optional(),
   message: z.string().trim().min(1).max(6000),
 });
 
@@ -33,9 +35,12 @@ export async function POST(req: Request) {
   const { message } = parsed.data;
   let conversationId = parsed.data.conversationId;
 
+  // Especialista da trilha: definido na criação da conversa e mantido nas mensagens seguintes.
+  let trail = trailAssistant(parsed.data.trail ?? "") ? (parsed.data.trail as string) : "";
   if (conversationId) {
-    const own = await get("SELECT id FROM conversations WHERE id = ? AND user_id = ?", conversationId, user.id);
+    const own = await get<{ trail: string }>("SELECT trail FROM conversations WHERE id = ? AND user_id = ?", conversationId, user.id);
     if (!own) return json(404, { error: "Conversa não encontrada." });
+    trail = own.trail;
   }
 
   const plan = await planOf(user);
@@ -47,7 +52,7 @@ export async function POST(req: Request) {
 
   if (!conversationId) {
     const title = message.length > 60 ? `${message.slice(0, 57)}...` : message;
-    conversationId = Number((await run("INSERT INTO conversations (user_id, title) VALUES (?, ?)", user.id, title)).lastInsertRowid);
+    conversationId = Number((await run("INSERT INTO conversations (user_id, title, trail) VALUES (?, ?, ?)", user.id, title, trail)).lastInsertRowid);
   }
   await run("INSERT INTO chat_messages (conversation_id, role, content) VALUES (?, 'user', ?)", conversationId, message);
   await run("UPDATE conversations SET updated_at = datetime('now') WHERE id = ?", conversationId);
@@ -68,7 +73,7 @@ export async function POST(req: Request) {
       const send = (obj: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(obj)}\n`));
       send({ type: "meta", conversationId: convId, used: await aiUsageToday(user.id), limit: await limit(plan, "ai_messages_per_day") });
       try {
-        const text = await streamChat(history, context, (chunk) => send({ type: "text", text: chunk }));
+        const text = await streamChat(history, context, (chunk) => send({ type: "text", text: chunk }), trail);
         if (text.trim()) await run("INSERT INTO chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)", convId, text);
         send({ type: "done" });
       } catch (err) {

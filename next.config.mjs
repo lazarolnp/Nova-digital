@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // Inclui os PDFs dos guias no pacote da função de download (necessário na Vercel).
+  outputFileTracingIncludes: { "/api/guias/[slug]": ["./content/guides-pdf/**"] },
   async headers() {
     return [
       {

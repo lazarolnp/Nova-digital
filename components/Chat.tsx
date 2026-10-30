@@ -7,23 +7,18 @@ import { Markdown } from "./Markdown";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const SUGGESTIONS = [
-  "Não sei por onde começar. Qual área combina comigo?",
-  "Monte um plano de estudos para esta semana com as horas que tenho.",
-  "Explique o que é CTR e CPC como se eu nunca tivesse anunciado.",
-  "Me ajude a escrever uma mensagem de abordagem para uma clínica, sem parecer spam.",
-  "Crie um roteiro de vídeo curto de 30 segundos para uma padaria.",
-  "Quais projetos eu posso colocar no portfólio se ainda não tenho clientes?",
-];
-
 export function Chat({
   conversationId: initialId,
+  trail,
+  suggestions,
   initialMessages,
   enabled,
   initialQuery,
   usage,
 }: {
   conversationId: number | null;
+  trail: string;
+  suggestions: string[];
   initialMessages: Msg[];
   enabled: boolean;
   initialQuery?: string;
@@ -54,7 +49,7 @@ export function Chat({
       const res = await fetch("/api/assistente", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId, message }),
+        body: JSON.stringify({ conversationId, message, trail }),
       });
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => ({ error: "Não foi possível enviar a mensagem." }));
@@ -118,7 +113,7 @@ export function Chat({
           <div className="stack" style={{ margin: "auto 0" }}>
             <p className="muted">Comece com uma pergunta ou escolha uma sugestão:</p>
             <div className="grid grid-2" style={{ gap: 10 }}>
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button key={s} type="button" className="option small" onClick={() => send(s)}>
                   {s}
                 </button>

@@ -1,6 +1,6 @@
-import type { SeedTrail } from "./types";
+import type { LegacyTrail } from "./types";
 
-export const TRAIL_VIDEO: SeedTrail = {
+export const TRAIL_VIDEO: LegacyTrail = {
   slug: "edicao-de-videos-ia",
   title: "Edição de vídeos com IA",
   subtitle: "Vídeos curtos, roteiro e portfólio",
@@ -191,7 +191,7 @@ Registre tudo por escrito para evitar mal-entendidos.`,
   },
 };
 
-export const TRAIL_AFILIADOS: SeedTrail = {
+export const TRAIL_AFILIADOS: LegacyTrail = {
   slug: "marketing-de-afiliados",
   title: "Marketing de afiliados",
   subtitle: "Divulgação ética e baseada em confiança",
@@ -339,7 +339,7 @@ Leia os termos de cada programa, guarde comprovantes e desconfie de "produtores"
   },
 };
 
-export const TRAIL_IA: SeedTrail = {
+export const TRAIL_IA: LegacyTrail = {
   slug: "ia-aplicada",
   title: "Inteligência artificial aplicada",
   subtitle: "IA como ferramenta de trabalho",
@@ -511,7 +511,7 @@ Seja transparente sobre o uso de IA quando for relevante e nunca use para engana
   },
 };
 
-export const TRAIL_CLIENTES: SeedTrail = {
+export const TRAIL_CLIENTES: LegacyTrail = {
   slug: "primeiros-clientes",
   title: "Como conseguir os primeiros clientes",
   subtitle: "Portfólio, prospecção e proposta",

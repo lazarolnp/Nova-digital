@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { Download, FileText, Lock } from "lucide-react";
+import { FREE_GUIDE } from "@/lib/guides";
 import { requireOnboardedUser } from "@/lib/auth";
 import { listTrails } from "@/lib/content";
 import { planOf } from "@/lib/access";
@@ -15,7 +16,21 @@ export default async function TrailsPage() {
   const trails = await listTrails(user.id);
   return (
     <>
-      <PageHeader title="Trilhas de aprendizagem" subtitle="Comece pelo básico e avance em etapas. Cada trilha combina aulas, exercícios e missões práticas." />
+      <PageHeader title="Trilhas de aprendizagem" subtitle="Cinco trilhas, uma para cada forma de trabalhar no digital. Cada uma tem cursos, missões, guia em PDF e uma IA especialista." />
+      <div className="card row between">
+        <div className="row" style={{ flexWrap: "nowrap" }}>
+          <div className="icon-box">
+            <FileText size={18} />
+          </div>
+          <div>
+            <h2 className="card-title">Guia gratuito: {FREE_GUIDE.title}</h2>
+            <p className="small muted">PDF com os caminhos do digital, como escolher o seu e como evitar golpes.</p>
+          </div>
+        </div>
+        <a href={`/api/guias/${FREE_GUIDE.slug}`} className="btn">
+          <Download size={15} /> Baixar PDF
+        </a>
+      </div>
       <div className="stack-lg">
         {trails.map((t, idx) => {
           const lessons = t.courses.reduce((s, c) => s + c.lessons, 0);
@@ -42,11 +57,17 @@ export default async function TrailsPage() {
                     {t.description}
                   </p>
                   <div className="row" style={{ marginTop: 12 }}>
-                    {t.modules.map((m, i) => (
-                      <span key={m} className="badge">
-                        Módulo {i + 1}: {m}
-                      </span>
-                    ))}
+                    {t.courses.length > 1
+                      ? t.courses.map((c) => (
+                          <span key={c.id} className="badge">
+                            {c.title}
+                          </span>
+                        ))
+                      : t.modules.map((m, i) => (
+                          <span key={m} className="badge">
+                            Módulo {i + 1}: {m}
+                          </span>
+                        ))}
                   </div>
                 </div>
                 <div className="stack">
@@ -59,13 +80,11 @@ export default async function TrailsPage() {
                     </span>
                   </div>
                   <Progress value={pct} label={`Progresso na trilha ${t.title}`} />
-                  {t.courses.map((c) => (
-                    <Link key={c.id} href={`/cursos/${c.slug}`} className="btn btn-primary btn-block">
-                      {done > 0 ? "Continuar" : "Começar"}: {c.title}
-                    </Link>
-                  ))}
-                  <Link href={`/missoes?trilha=${t.slug}`} className="btn btn-block">
-                    Ver missões da trilha
+                  <Link href={`/trilhas/${t.slug}`} className="btn btn-primary btn-block">
+                    {done > 0 ? "Continuar trilha" : "Abrir trilha"}
+                  </Link>
+                  <Link href={`/assistente?trilha=${t.slug}`} className="btn btn-block">
+                    Tirar dúvidas com a IA da trilha
                   </Link>
                 </div>
               </div>

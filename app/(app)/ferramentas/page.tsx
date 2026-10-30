@@ -8,10 +8,13 @@ import { ToolsBrowser, type ToolView } from "@/components/ToolsBrowser";
 export const metadata: Metadata = { title: "Ferramentas" };
 
 const ORDER = [
+  "Afiliados e produtos digitais",
+  "E-commerce e dropshipping",
+  "Criação de sites",
+  "Criação de SaaS",
   "Design e criativos",
   "Edição de vídeo",
   "Inteligência artificial",
-  "Criação de sites",
   "Gestão de redes sociais",
   "Análise de anúncios",
   "Organização e produtividade",

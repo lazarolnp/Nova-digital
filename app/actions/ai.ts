@@ -10,8 +10,8 @@ export async function requestMissionFeedbackAction(missionId: number): Promise<{
   const user = await requireOnboardedUser();
   if (!aiConfigured()) return { error: "O assistente de IA ainda não foi configurado nesta instalação." };
   const plan = await planOf(user);
-  const mission = await get<{ slug: string; title: string; objective: string; criteria: string; is_premium: number }>(
-    "SELECT slug, title, objective, criteria, is_premium FROM missions WHERE id = ? AND published = 1",
+  const mission = await get<{ slug: string; title: string; objective: string; criteria: string; is_premium: number; trail: string | null }>(
+    "SELECT m.slug, m.title, m.objective, m.criteria, m.is_premium, t.slug AS trail FROM missions m LEFT JOIN trails t ON t.id = m.trail_id WHERE m.id = ? AND m.published = 1",
     missionId,
   );
   if (!mission || !canAccessPremium(plan, mission.is_premium)) return { error: "Missão indisponível." };
@@ -34,6 +34,7 @@ export async function requestMissionFeedbackAction(missionId: number): Promise<{
       resultText: progress.result_text,
       resultUrl: progress.result_url,
       context: await userContext(user, plan),
+      trail: mission.trail ?? "",
     });
     await run("UPDATE mission_progress SET ai_feedback = ? WHERE user_id = ? AND mission_id = ?", feedback, user.id, missionId);
     revalidatePath(`/missoes/${mission.slug}`);

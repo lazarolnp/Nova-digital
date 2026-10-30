@@ -122,9 +122,9 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
             <div className="card">
               <h2 className="card-title">Ficou com dúvida?</h2>
               <p className="small muted" style={{ marginTop: 6 }}>
-                Pergunte ao Assistente IA. Ele conhece o catálogo da plataforma e o seu progresso.
+                Pergunte ao especialista desta trilha. Ele conhece o conteúdo da plataforma e o seu progresso.
               </p>
-              <Link href={`/assistente?q=${encodeURIComponent(`Tenho uma dúvida sobre a aula "${lesson.title}": `)}`} className="btn btn-sm" style={{ marginTop: 12 }}>
+              <Link href={`/assistente?${lesson.trail_slug ? `trilha=${lesson.trail_slug}&` : ""}q=${encodeURIComponent(`Tenho uma dúvida sobre a aula "${lesson.title}": `)}`} className="btn btn-sm" style={{ marginTop: 12 }}>
                 Perguntar ao assistente
               </Link>
             </div>

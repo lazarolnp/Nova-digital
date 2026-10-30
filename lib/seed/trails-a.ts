@@ -1,4 +1,4 @@
-import type { SeedTrail } from "./types";
+import type { LegacyTrail } from "./types";
 
 const META_HELP = { title: "Central de Ajuda para Empresas da Meta", url: "https://www.facebook.com/business/help" };
 const META_LEARN = { title: "Meta para Empresas — cursos gratuitos", url: "https://www.facebook.com/business/learn" };
@@ -8,7 +8,7 @@ const SKILLSHOP = { title: "Google Skillshop — certificações gratuitas", url
 const CONSUMIDOR = { title: "Consumidor.gov.br", url: "https://www.consumidor.gov.br" };
 const REGISTRO_BR = { title: "Registro.br — domínios .br", url: "https://registro.br" };
 
-export const TRAIL_PRIMEIROS_PASSOS: SeedTrail = {
+export const TRAIL_PRIMEIROS_PASSOS: LegacyTrail = {
   slug: "primeiros-passos",
   title: "Primeiros passos no digital",
   subtitle: "Entenda o mercado e escolha seu caminho",
@@ -187,7 +187,7 @@ Construir renda com habilidades digitais é possível, mas **leva tempo, prátic
   },
 };
 
-export const TRAIL_TRAFEGO: SeedTrail = {
+export const TRAIL_TRAFEGO: LegacyTrail = {
   slug: "trafego-pago",
   title: "Tráfego pago",
   subtitle: "Anúncios no Meta Ads e Google Ads",
@@ -402,7 +402,7 @@ Considere o tempo que você vai gastar, sua experiência e o porte do cliente. N
   },
 };
 
-export const TRAIL_SITES: SeedTrail = {
+export const TRAIL_SITES: LegacyTrail = {
   slug: "criacao-de-sites",
   title: "Criação de sites",
   subtitle: "Landing pages e sites que convertem",

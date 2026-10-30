@@ -5,6 +5,7 @@ import { optionLabel, type OnboardingKey } from "./options";
 import { levelFor, totalXp, userStats } from "./progress";
 import type { User } from "./auth";
 import type { PlanId } from "./access";
+import { trailAssistant } from "./seed";
 
 export const AI_MODEL = process.env.AI_MODEL || "claude-opus-5-5";
 const EFFORTS = ["low", "medium", "high"] as const;
@@ -92,9 +93,16 @@ export async function userContext(user: User, plan: PlanId): Promise<string> {
   return `Contexto atualizado da pessoa (use para personalizar, não repita literalmente):\n${lines.join("\n")}`;
 }
 
-async function requestParams(messages: Anthropic.Beta.Messages.BetaMessageParam[], context: string, maxTokens: number) {
+/** Instruções do especialista da trilha (vazio = assistente geral). */
+function specialistPrompt(trail: string) {
+  const t = trailAssistant(trail);
+  if (!t) return "";
+  return `\n\nNesta conversa você atua como **${t.assistant.name}**, especialista da trilha "${t.title}" da NovaDigital. ${t.assistant.focus}\nConcentre as respostas nesse tema. Se a pergunta for de outra área, responda de forma breve e indique a trilha da NovaDigital mais adequada.`;
+}
+
+async function requestParams(messages: Anthropic.Beta.Messages.BetaMessageParam[], context: string, maxTokens: number, trail = "") {
   const system: Anthropic.Beta.Messages.BetaTextBlockParam[] = [
-    { type: "text", text: `${BASE_PROMPT}\n\n${await catalog()}`, cache_control: { type: "ephemeral" } },
+    { type: "text", text: `${BASE_PROMPT}${specialistPrompt(trail)}\n\n${await catalog()}`, cache_control: { type: "ephemeral" } },
   ];
   if (MID_SYSTEM_MODELS.has(AI_MODEL)) {
     messages = [...messages, { role: "system", content: context } as unknown as Anthropic.Beta.Messages.BetaMessageParam];
@@ -128,9 +136,10 @@ export async function streamChat(
   history: { role: "user" | "assistant"; content: string }[],
   context: string,
   onText: (chunk: string) => void,
+  trail = "",
 ): Promise<string> {
   const messages: Anthropic.Beta.Messages.BetaMessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
-  const stream = getClient().beta.messages.stream(await requestParams(messages, context, 8000));
+  const stream = getClient().beta.messages.stream(await requestParams(messages, context, 8000, trail));
   let text = "";
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
@@ -155,6 +164,7 @@ export async function missionFeedback(input: {
   resultText: string;
   resultUrl: string;
   context: string;
+  trail?: string;
 }): Promise<string> {
   const prompt = `Avalie a entrega de uma missão prática da NovaDigital.
 
@@ -177,7 +187,7 @@ Para cada critério: atendido, parcialmente ou não atendido, com uma frase de j
 Passos concretos e priorizados.
 ## Próximo passo sugerido`;
   const messages: Anthropic.Beta.Messages.BetaMessageParam[] = [{ role: "user", content: prompt }];
-  const final = await getClient().beta.messages.stream(await requestParams(messages, input.context, 6000)).finalMessage();
+  const final = await getClient().beta.messages.stream(await requestParams(messages, input.context, 6000, input.trail ?? "")).finalMessage();
   if (final.stop_reason === "refusal") return REFUSAL_MESSAGE;
   return final.content
     .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === "text")

@@ -26,8 +26,27 @@ function databaseUrl() {
 async function open(): Promise<Client> {
   const client = createClient({ url: databaseUrl(), authToken: process.env.TURSO_AUTH_TOKEN, intMode: "number" });
   await client.executeMultiple(SCHEMA);
+  await migrate(client);
   await seedIfEmpty(client);
   return client;
+}
+
+/** Colunas adicionadas depois da primeira versão (CREATE TABLE IF NOT EXISTS não altera tabelas existentes). */
+const COLUMN_MIGRATIONS = [{ table: "conversations", column: "trail", ddl: "ALTER TABLE conversations ADD COLUMN trail TEXT NOT NULL DEFAULT ''" }];
+
+async function migrate(client: Client) {
+  for (const m of COLUMN_MIGRATIONS) {
+    const info = await client.execute(`PRAGMA table_info(${m.table})`);
+    const exists = info.rows.some((r) => r[info.columns.indexOf("name")] === m.column);
+    if (!exists) {
+      try {
+        await client.execute(m.ddl);
+      } catch (err) {
+        // Outra instância pode ter adicionado a coluna ao mesmo tempo.
+        if (!/duplicate column/i.test(String(err))) throw err;
+      }
+    }
+  }
 }
 
 export function db(): Promise<Client> {

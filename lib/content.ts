@@ -118,13 +118,15 @@ export type LessonDetail = {
   course_slug: string;
   course_title: string;
   course_premium: number;
+  trail_slug: string | null;
 };
 
 export async function getLesson(id: number) {
   const lesson = await get<LessonDetail>(
     `SELECT l.id, l.title, l.content, l.exercise, l.materials, l.video_url, l.duration_min, l.is_free_preview,
-       m.title AS module_title, c.id AS course_id, c.slug AS course_slug, c.title AS course_title, c.is_premium AS course_premium
-     FROM lessons l JOIN modules m ON m.id = l.module_id JOIN courses c ON c.id = m.course_id
+       m.title AS module_title, c.id AS course_id, c.slug AS course_slug, c.title AS course_title, c.is_premium AS course_premium,
+       t.slug AS trail_slug
+     FROM lessons l JOIN modules m ON m.id = l.module_id JOIN courses c ON c.id = m.course_id LEFT JOIN trails t ON t.id = c.trail_id
      WHERE l.id = ? AND c.published = 1`,
     id,
   );

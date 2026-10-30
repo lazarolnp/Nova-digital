@@ -20,12 +20,14 @@ const STUDY_DAYS: Record<string, number[]> = {
 };
 const WEEKLY_MINUTES: Record<string, number> = { "2-4": 180, "5-8": 390, "9-15": 720, "16+": 1080 };
 
-async function courseLessons(trailSlug: string, plan: PlanId): Promise<Task[]> {
+/** Aulas acessíveis de uma trilha inteira ou de um curso específico, na ordem do conteúdo. */
+async function lessonsOf(where: { trail: string } | { course: string }, plan: PlanId): Promise<Task[]> {
+  const byTrail = "trail" in where;
   const rows = await all<{ id: number; title: string; duration_min: number; is_premium: number; is_free_preview: number; course: string }>(
     `SELECT l.id, l.title, l.duration_min, c.is_premium, l.is_free_preview, c.title AS course
      FROM trails t JOIN courses c ON c.trail_id = t.id JOIN modules m ON m.course_id = c.id JOIN lessons l ON l.module_id = m.id
-     WHERE t.slug = ? AND c.published = 1 ORDER BY c.sort, m.sort, l.sort`,
-    trailSlug,
+     WHERE ${byTrail ? "t.slug" : "c.slug"} = ? AND c.published = 1 ORDER BY c.sort, m.sort, l.sort`,
+    byTrail ? where.trail : where.course,
   );
   return rows
     .filter((r) => canAccessLesson(plan, r.is_premium, r.is_free_preview))
@@ -62,7 +64,7 @@ async function missionBySlug(slug: string, plan: PlanId): Promise<Task | null> {
 const action = (title: string, detail: string, minutes = 30): Task => ({ kind: "acao", refId: null, title, detail, minutes });
 
 export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
-  const focusTrail = AREA_TO_TRAIL[a.area] ?? "primeiros-passos";
+  const focusTrail = AREA_TO_TRAIL[a.area] ?? "outras-formas";
   const queue: Task[] = [];
   const seen = new Set<string>();
   const push = (t: Task | null) => {
@@ -74,8 +76,9 @@ export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
   };
 
   // 1. Fundamentos (completos para quem está começando)
-  const foundation = await courseLessons("primeiros-passos", plan);
-  if (a.level === "intermediario" && a.area !== "indefinido") {
+  const foundation = await lessonsOf({ course: "fundamentos-marketing-digital" }, plan);
+  const exploring = a.area === "indefinido" || a.area === "outras";
+  if (a.level === "intermediario" && !exploring) {
     foundation.filter((l) => /golpes|rotina/i.test(l.title)).forEach(push);
   } else {
     foundation.forEach(push);
@@ -88,27 +91,35 @@ export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
   );
   push(await missionBySlug("mapa-do-mercado", plan));
 
-  // 2. Área de foco (ou exploração quando ainda não há área definida)
-  if (a.area === "indefinido") {
-    for (const slug of ["trafego-pago", "criacao-de-sites", "edicao-de-videos-ia", "marketing-de-afiliados", "ia-aplicada"]) {
-      (await courseLessons(slug, plan)).slice(0, 1).forEach(push);
-    }
+  // 2. Trilha de foco (ou exploração quando ainda não há área definida)
+  if (exploring) {
+    const intro =
+      a.area === "outras"
+        ? ["trafego-pago-do-zero", "infoprodutos-do-zero", "edicao-de-videos-com-ia", "ia-no-trabalho-digital", "primeiros-clientes"]
+        : ["afiliados-do-zero", "dropshipping-na-pratica", "sites-e-landing-pages", "saas-do-zero", "trafego-pago-do-zero"];
+    for (const course of intro) (await lessonsOf({ course }, plan)).slice(0, 1).forEach(push);
     push(
       action(
         "Escolha sua área de foco",
-        "Depois de experimentar as aulas introdutórias, escolha uma área em Minha Conta → Refazer plano para receber um plano focado.",
+        "Depois de experimentar as aulas introdutórias, refaça seu plano em Minha conta escolhendo a área que mais combinou com você.",
         20,
       ),
     );
   } else {
-    (await courseLessons(focusTrail, plan)).forEach(push);
+    (await lessonsOf({ trail: focusTrail }, plan)).forEach(push);
     (await trailMissions(focusTrail, plan)).forEach(push);
   }
-  (await courseLessons("ia-aplicada", plan)).slice(0, 1).forEach(push);
+  (await lessonsOf({ course: "ia-no-trabalho-digital" }, plan)).slice(0, 1).forEach(push);
   push(await missionBySlug("kit-de-prompts", plan));
 
-  if (a.area === "trafego" && a.budget === "zero") {
-    push(action("Pratique sem investir", "Monte planos e relatórios marcados como simulação. Teste real só quando houver um negócio e orçamento definidos.", 20));
+  if (a.area === "dropshipping" && a.budget === "zero") {
+    push(
+      action(
+        "Planeje antes de investir",
+        "Dropshipping costuma exigir verba para pedidos de teste e anúncios. Monte a loja de teste e a planilha de margem antes de colocar dinheiro.",
+        20,
+      ),
+    );
   }
 
   // 3. Portfólio
@@ -122,16 +133,17 @@ export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
 
   // 4. Caminho conforme preferência e objetivo
   if (a.goal === "negocio") {
-    push(action("Aplique no seu negócio", "Escolha uma ação aprendida (página, criativo ou vídeo) e aplique no seu próprio negócio. Registre o antes e o depois.", 90));
+    push(action("Aplique no seu negócio", "Escolha uma ação aprendida (página, criativo, conteúdo ou loja) e aplique no seu próprio negócio. Registre o antes e o depois.", 90));
   } else if (a.preference === "servicos") {
-    (await courseLessons("primeiros-clientes", plan)).forEach(push);
+    (await lessonsOf({ course: "primeiros-clientes" }, plan)).forEach(push);
     push(await missionBySlug("portfolio-tres-projetos", plan));
     push(await missionBySlug("pesquisa-dez-clientes", plan));
     push(await missionBySlug("pratica-abordagem", plan));
-  } else if (a.preference === "produtos" && a.area !== "afiliados") {
-    (await courseLessons("marketing-de-afiliados", plan)).slice(0, 2).forEach(push);
-  } else if (a.preference === "conteudo" && a.area !== "video") {
-    (await courseLessons("edicao-de-videos-ia", plan)).slice(0, 2).forEach(push);
+  } else if (a.preference === "produtos" && a.area !== "afiliados" && a.area !== "dropshipping") {
+    (await lessonsOf({ course: "afiliados-do-zero" }, plan)).slice(0, 2).forEach(push);
+    (await lessonsOf({ course: "infoprodutos-do-zero" }, plan)).slice(0, 1).forEach(push);
+  } else if (a.preference === "conteudo") {
+    (await lessonsOf({ course: "edicao-de-videos-com-ia" }, plan)).slice(0, 2).forEach(push);
     push(await missionBySlug("primeiro-video-curto", plan));
   }
 

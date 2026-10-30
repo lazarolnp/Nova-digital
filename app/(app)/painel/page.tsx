@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Bot, BookOpen, CalendarCheck, FolderKanban, Sparkles, Target, Trophy, Wrench } from "lucide-react";
+import { ArrowRight, Bot, BookOpen, FileText, CalendarCheck, FolderKanban, Sparkles, Target, Trophy, Wrench } from "lucide-react";
 import { requireOnboardedUser } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { listCourses } from "@/lib/content";
@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   const user = await requireOnboardedUser();
   const onboarding = await get<{ area: string }>("SELECT area FROM onboarding WHERE user_id = ?", user.id);
   const focusTrail = AREA_TO_TRAIL[onboarding?.area ?? "indefinido"];
-  const focusCourse = await get<{ id: number }>("SELECT c.id FROM courses c JOIN trails t ON t.id = c.trail_id WHERE t.slug = ?", focusTrail);
+  const focusCourse = await get<{ id: number }>("SELECT c.id FROM courses c JOIN trails t ON t.id = c.trail_id WHERE t.slug = ? ORDER BY c.sort LIMIT 1", focusTrail);
 
   const xp = await totalXp(user.id);
   const level = levelFor(xp);
@@ -264,6 +264,12 @@ export default async function DashboardPage() {
             <Link href="/conta#conquistas" className="btn btn-sm">
               <Trophy size={14} /> Conquistas
             </Link>
+            <Link href="/trilhas" className="btn btn-sm">
+              <BookOpen size={14} /> Trilhas
+            </Link>
+            <a href="/api/guias/como-funciona" className="btn btn-sm">
+              <FileText size={14} /> Guia PDF
+            </a>
           </div>
         </div>
       </div>

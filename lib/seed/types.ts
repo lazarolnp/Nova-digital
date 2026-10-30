@@ -21,13 +21,26 @@ export type SeedCourse = {
   modules: SeedModule[];
 };
 
-export type SeedTrail = {
+/** Formato antigo (uma trilha = um curso), usado como fonte dos cursos reaproveitados. */
+export type LegacyTrail = {
   slug: string;
   title: string;
   subtitle: string;
   description: string;
   level: string;
   course: SeedCourse;
+};
+
+export type TrailAssistant = { name: string; focus: string; suggestions: string[] };
+
+export type SeedTrail = {
+  slug: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  level: string;
+  assistant: TrailAssistant;
+  courses: SeedCourse[];
 };
 
 export type SeedMission = {

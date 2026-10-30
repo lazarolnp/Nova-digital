@@ -12,11 +12,11 @@ export const ONBOARDING_QUESTIONS = {
   area: {
     label: "Qual área mais te interessa?",
     options: [
-      { value: "trafego", label: "Tráfego pago" },
+      { value: "afiliados", label: "Afiliados" },
+      { value: "dropshipping", label: "Dropshipping" },
       { value: "sites", label: "Criação de sites" },
-      { value: "video", label: "Edição de vídeos" },
-      { value: "afiliados", label: "Marketing de afiliados" },
-      { value: "ia", label: "Inteligência artificial aplicada" },
+      { value: "saas", label: "Criação de SaaS" },
+      { value: "outras", label: "Outras formas (tráfego, infoprodutos, vídeo, IA, serviços)" },
       { value: "indefinido", label: "Ainda não sei" },
     ],
   },
@@ -66,12 +66,12 @@ export function optionLabel(key: OnboardingKey, value: string) {
 }
 
 export const AREA_TO_TRAIL: Record<string, string> = {
-  trafego: "trafego-pago",
-  sites: "criacao-de-sites",
-  video: "edicao-de-videos-ia",
   afiliados: "marketing-de-afiliados",
-  ia: "ia-aplicada",
-  indefinido: "primeiros-passos",
+  dropshipping: "dropshipping",
+  sites: "criacao-de-sites",
+  saas: "criacao-de-saas",
+  outras: "outras-formas",
+  indefinido: "outras-formas",
 };
 
 export const PROJECT_CATEGORIES = ["Site / Landing page", "Criativo", "Campanha", "Vídeo", "Conteúdo", "Proposta comercial", "Outro"];
