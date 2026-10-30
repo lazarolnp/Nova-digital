@@ -96,7 +96,7 @@ export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
     const intro =
       a.area === "outras"
         ? ["trafego-pago-do-zero", "infoprodutos-do-zero", "edicao-de-videos-com-ia", "ia-no-trabalho-digital", "primeiros-clientes"]
-        : ["afiliados-do-zero", "dropshipping-na-pratica", "sites-e-landing-pages", "saas-do-zero", "trafego-pago-do-zero"];
+        : ["afiliados-do-zero", "low-ticket-na-pratica", "dropshipping-na-pratica", "sites-e-landing-pages", "saas-do-zero", "trafego-pago-do-zero"];
     for (const course of intro) (await lessonsOf({ course }, plan)).slice(0, 1).forEach(push);
     push(
       action(
@@ -139,7 +139,7 @@ export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
     push(await missionBySlug("portfolio-tres-projetos", plan));
     push(await missionBySlug("pesquisa-dez-clientes", plan));
     push(await missionBySlug("pratica-abordagem", plan));
-  } else if (a.preference === "produtos" && a.area !== "afiliados" && a.area !== "dropshipping") {
+  } else if (a.preference === "produtos" && !["afiliados", "dropshipping", "lowticket"].includes(a.area)) {
     (await lessonsOf({ course: "afiliados-do-zero" }, plan)).slice(0, 2).forEach(push);
     (await lessonsOf({ course: "infoprodutos-do-zero" }, plan)).slice(0, 1).forEach(push);
   } else if (a.preference === "conteudo") {

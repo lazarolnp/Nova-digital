@@ -13,6 +13,7 @@ export const ONBOARDING_QUESTIONS = {
     label: "Qual área mais te interessa?",
     options: [
       { value: "afiliados", label: "Afiliados" },
+      { value: "lowticket", label: "Low ticket" },
       { value: "dropshipping", label: "Dropshipping" },
       { value: "sites", label: "Criação de sites" },
       { value: "saas", label: "Criação de SaaS" },
@@ -67,6 +68,7 @@ export function optionLabel(key: OnboardingKey, value: string) {
 
 export const AREA_TO_TRAIL: Record<string, string> = {
   afiliados: "marketing-de-afiliados",
+  lowticket: "low-ticket",
   dropshipping: "dropshipping",
   sites: "criacao-de-sites",
   saas: "criacao-de-saas",

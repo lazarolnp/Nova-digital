@@ -16,7 +16,7 @@ export default async function TrailsPage() {
   const trails = await listTrails(user.id);
   return (
     <>
-      <PageHeader title="Trilhas de aprendizagem" subtitle="Cinco trilhas, uma para cada forma de trabalhar no digital. Cada uma tem cursos, missões, guia em PDF e uma IA especialista." />
+      <PageHeader title="Trilhas de aprendizagem" subtitle="Seis trilhas, uma para cada forma de trabalhar no digital. Cada uma tem cursos, missões, guia em PDF e uma IA especialista." />
       <div className="card row between">
         <div className="row" style={{ flexWrap: "nowrap" }}>
           <div className="icon-box">

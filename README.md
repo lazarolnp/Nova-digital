@@ -40,6 +40,7 @@ Defina `ANTHROPIC_API_KEY` no servidor. Sem a chave, o assistente e o feedback d
 | Trilha | Cursos | Especialista de IA |
 |---|---|---|
 | Afiliados | Marketing de Afiliados do Zero | Mentor de Afiliados |
+| Low ticket | Low Ticket na Prática | Mentor de Low Ticket |
 | Dropshipping | Dropshipping na Prática | Mentor de Dropshipping |
 | Criação de sites | Sites e Landing Pages Profissionais | Mentor de Sites |
 | Criação de SaaS | Criação de SaaS do Zero | Mentor de SaaS |
@@ -48,7 +49,7 @@ Defina `ANTHROPIC_API_KEY` no servidor. Sem a chave, o assistente e o feedback d
 - **Conteúdo:** `lib/seed/trail-*.ts` (aulas, exercícios, materiais), missões em `lib/seed/missions.ts`, ferramentas em `lib/seed/tools.ts`.
 - **IA por trilha:** o foco de cada especialista fica em `assistant.focus` da trilha. Cada conversa guarda a trilha em que foi criada.
 - **Guias em PDF:** textos em `content/guides/*.md`; gere os PDFs com `npm run build:guides` (precisa de um Chromium; informe `CHROMIUM_PATH` se necessário). O guia "Como funciona o marketing digital" é liberado para qualquer conta; os guias das trilhas seguem o acesso Premium.
-- **Atualizar o conteúdo inicial:** ao mudar a estrutura em `lib/seed`, aumente `CONTENT_VERSION` em `lib/seed/index.ts`. Na próxima execução o banco é ressincronizado: o progresso em aulas e missões é zerado, contas, projetos, conversas e assinaturas são mantidos, e cada aluno é convidado a refazer o plano. Edições feitas pelo painel admin no conteúdo também são substituídas.
+- **Atualizar o conteúdo inicial:** ao mudar o conteúdo em `lib/seed`, aumente `CONTENT_VERSION` em `lib/seed/index.ts`. Trilhas, missões e ferramentas novas são adicionadas sem apagar o progresso dos alunos (cada um recebe um aviso da nova trilha). Para mudanças que reorganizam o conteúdo existente, aumente também `ADDITIVE_FROM`: aí o banco é ressincronizado por completo, o progresso em aulas e missões é zerado (contas, projetos, conversas e assinaturas são mantidos) e cada aluno é convidado a refazer o plano.
 
 ## Publicar na Vercel
 

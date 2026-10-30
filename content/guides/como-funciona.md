@@ -18,6 +18,7 @@ Quem domina uma dessas etapas consegue ajudar negócios reais ou construir o pr�
 | Caminho | Como você ganha | Investimento inicial | Principal desafio |
 |---|---|---|---|
 | Afiliados | Comissão por venda de produtos de terceiros | Baixo | Construir audiência e confiança |
+| Low ticket | Venda em volume de produtos digitais baratos | Baixo a médio (anúncios) | Margem apertada e controle de custos |
 | Dropshipping | Margem na venda de produtos sem estoque | Médio (testes e anúncios) | Margem, fornecedores e prazos |
 | Criação de sites | Pagamento por projeto e manutenção | Baixo | Conseguir os primeiros clientes |
 | Criação de SaaS | Assinaturas de um software | Baixo a médio | Validar o problema e reter clientes |
@@ -50,7 +51,7 @@ Nunca compartilhe senhas ou códigos de verificação por mensagem e prefira apr
 
 - **Dia 1:** escolha um negócio do seu bairro e observe como ele aparece na internet.
 - **Dia 2:** liste seus horários livres e monte uma rotina de estudos realista.
-- **Dia 3:** leia sobre os cinco caminhos deste guia e anote os dois que mais combinam com você.
+- **Dia 3:** leia sobre os seis caminhos deste guia e anote os dois que mais combinam com você.
 - **Dia 4:** faça uma tarefa prática do primeiro caminho escolhido.
 - **Dia 5:** faça uma tarefa prática do segundo caminho.
 - **Dia 6:** compare as experiências e escolha seu foco.
