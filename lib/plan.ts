@@ -176,7 +176,7 @@ export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
     }
     if (used === 0) {
       items.push({
-        ...action("Prática livre", "Refaça um exercício, melhore um projeto do portfólio ou peça ao Assistente IA um desafio da sua área.", Math.min(perDay, 60)),
+        ...action("Prática livre", "Refaça um exercício, melhore um projeto do portfólio ou revise o guia em PDF da sua trilha.", Math.min(perDay, 60)),
         day,
         week,
       });

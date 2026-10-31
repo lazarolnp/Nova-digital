@@ -5,6 +5,7 @@ import { getUser } from "@/lib/auth";
 import { get } from "@/lib/db";
 import { getSetting, limit, planOf } from "@/lib/access";
 import { joinWaitlistAction } from "@/app/actions/account";
+import { AI_ENABLED } from "@/lib/features";
 import { PublicFooter, PublicNav } from "@/components/PublicNav";
 
 export const metadata: Metadata = { title: "Planos" };
@@ -22,14 +23,14 @@ export default async function PlansPage() {
     "Missões iniciais com checklist e registro",
     "Biblioteca com ferramentas básicas",
     "Plano de 30 dias personalizado",
-    `Assistente de IA: até ${await limit("free", "ai_messages_per_day")} interações por dia`,
+    ...(AI_ENABLED ? [`Assistente de IA: até ${await limit("free", "ai_messages_per_day")} interações por dia`] : ["Guia em PDF: como funciona o marketing digital"]),
     `Até ${await limit("free", "max_projects")} projetos no portfólio`,
   ];
   const premium = [
     "Catálogo completo de cursos e trilhas avançadas",
     "Todas as missões e projetos práticos",
     "Modelos profissionais e ferramentas adicionais",
-    `Assistente de IA ampliado: até ${await limit("premium", "ai_messages_per_day")} interações por dia`,
+    ...(AI_ENABLED ? [`Assistente de IA ampliado: até ${await limit("premium", "ai_messages_per_day")} interações por dia`] : ["Guias em PDF de todas as trilhas"]),
     `Até ${await limit("premium", "max_projects")} projetos no portfólio`,
     "Plano de 30 dias com todo o conteúdo premium incluído",
   ];

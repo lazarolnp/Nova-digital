@@ -4,6 +4,7 @@ import { requireOnboardedUser } from "@/lib/auth";
 import { planOf } from "@/lib/access";
 import { unreadCount } from "@/lib/progress";
 import { Sidebar } from "@/components/Sidebar";
+import { AI_ENABLED } from "@/lib/features";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -12,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const unread = await unreadCount(user.id);
   return (
     <div className="shell">
-      <Sidebar unread={unread} isAdmin={user.role === "admin"} />
+      <Sidebar unread={unread} isAdmin={user.role === "admin"} aiEnabled={AI_ENABLED} />
       <div className="main">
         <header className="topbar">
           <div className="row">

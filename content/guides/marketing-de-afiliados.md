@@ -49,5 +49,3 @@ Valor de um clique = comissão × taxa de conversão. Exemplo: comissão de R$ 5
 ## Cuidados
 
 Deixe claro que é link de afiliado, não prometa resultados, não crie perfis ou depoimentos falsos e respeite as regras de cada programa e da LGPD.
-
-*Use o Mentor de Afiliados na plataforma para tirar dúvidas sobre esta trilha.*

@@ -5,6 +5,8 @@ import { requireOnboardedUser } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { aiUsageToday, limit, planOf } from "@/lib/access";
 import { aiConfigured } from "@/lib/ai";
+import { AI_ENABLED } from "@/lib/features";
+import { redirect } from "next/navigation";
 import { SEED_TRAILS, trailAssistant } from "@/lib/seed";
 import { intParam } from "@/lib/validation";
 import { deleteConversationAction } from "@/app/actions/ai";
@@ -22,6 +24,7 @@ const GENERAL_SUGGESTIONS = [
 
 export default async function AssistantPage({ searchParams }: { searchParams: Promise<{ c?: string; q?: string; trilha?: string }> }) {
   const user = await requireOnboardedUser();
+  if (!AI_ENABLED) redirect("/painel");
   const { c, q, trilha } = await searchParams;
   const plan = await planOf(user);
   const conversations = await all<{ id: number; title: string; trail: string }>(

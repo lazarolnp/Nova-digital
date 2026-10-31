@@ -54,5 +54,3 @@ Taxa de conversão, custo por compra, ticket médio, lucro por venda, lucro do m
 ## Cuidados
 
 Desconfie de quem vende "produto vencedor garantido" ou mostra faturamento sem mostrar custos. Nunca invente avaliações.
-
-*Use o Mentor de Dropshipping na plataforma para tirar dúvidas sobre esta trilha.*

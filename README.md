@@ -31,9 +31,14 @@ Defina `ADMIN_EMAIL` antes de se cadastrar com esse e-mail, ou promova uma conta
 npm run make-admin -- voce@exemplo.com
 ```
 
-### Assistente de IA
+### Assistente de IA (desligado por padrão)
 
-Defina `ANTHROPIC_API_KEY` no servidor. Sem a chave, o assistente e o feedback de missões aparecem como "não configurado" — nenhuma resposta é simulada. Opcionalmente ajuste `AI_MODEL` (padrão `claude-opus-5-5`) e `AI_EFFORT` (`low`, `medium`, `high`).
+O assistente e o feedback de missões por IA estão **desativados** e não aparecem no site. Cada mensagem é cobrada por uso pela Anthropic na conta dona da chave, então só ligue quando os limites e preços estiverem definidos. Para ligar, defina na Vercel:
+
+- `AI_ENABLED=true`
+- `ANTHROPIC_API_KEY` (e, opcionalmente, `AI_MODEL` e `AI_EFFORT`)
+
+Ajuste os limites de mensagens por plano em **Admin → Planos e limites** e defina um teto de gastos no painel da Anthropic.
 
 ## Trilhas, IA e guias
 
@@ -49,7 +54,7 @@ Defina `ANTHROPIC_API_KEY` no servidor. Sem a chave, o assistente e o feedback d
 - **Conteúdo:** `lib/seed/trail-*.ts` (aulas, exercícios, materiais), missões em `lib/seed/missions.ts`, ferramentas em `lib/seed/tools.ts`.
 - **IA por trilha:** o foco de cada especialista fica em `assistant.focus` da trilha. Cada conversa guarda a trilha em que foi criada.
 - **Guias em PDF:** textos em `content/guides/*.md`; gere os PDFs com `npm run build:guides` (precisa de um Chromium; informe `CHROMIUM_PATH` se necessário). O guia "Como funciona o marketing digital" é liberado para qualquer conta; os guias das trilhas seguem o acesso Premium.
-- **Atualizar o conteúdo inicial:** ao mudar o conteúdo em `lib/seed`, aumente `CONTENT_VERSION` em `lib/seed/index.ts`. Trilhas, missões e ferramentas novas são adicionadas sem apagar o progresso dos alunos (cada um recebe um aviso da nova trilha). Para mudanças que reorganizam o conteúdo existente, aumente também `ADDITIVE_FROM`: aí o banco é ressincronizado por completo, o progresso em aulas e missões é zerado (contas, projetos, conversas e assinaturas são mantidos) e cada aluno é convidado a refazer o plano.
+- **Atualizar o conteúdo inicial:** ao mudar o conteúdo em `lib/seed`, aumente `CONTENT_VERSION` em `lib/seed/index.ts`. Trilhas, missões e ferramentas novas são adicionadas e os textos de aulas e missões são atualizados, sem apagar o progresso dos alunos (edições feitas pelo admin nesses textos são substituídas). Para mudanças que reorganizam o conteúdo existente, aumente também `ADDITIVE_FROM`: aí o banco é ressincronizado por completo, o progresso em aulas e missões é zerado (contas, projetos, conversas e assinaturas são mantidos) e cada aluno é convidado a refazer o plano.
 
 ## Publicar na Vercel
 
@@ -70,6 +75,7 @@ A Vercel não tem disco permanente, então o banco fica no **Turso** (SQLite hos
 |---|---|
 | `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` | Banco Turso (obrigatório na Vercel) |
 | `DATABASE_URL` | Alternativa local, ex.: `file:./data/outro.db` |
+| `AI_ENABLED` | `true` liga o assistente de IA (padrão: desligado) |
 | `ANTHROPIC_API_KEY` | Chave da API da Anthropic para o assistente |
 | `AI_MODEL` / `AI_EFFORT` | Modelo e profundidade de raciocínio do assistente |
 | `APP_URL` | URL pública, usada na verificação de origem da API |

@@ -6,6 +6,7 @@ import { requireOnboardedUser } from "@/lib/auth";
 import { getMission } from "@/lib/content";
 import { canAccessPremium, planOf } from "@/lib/access";
 import { aiConfigured } from "@/lib/ai";
+import { AI_ENABLED } from "@/lib/features";
 import { MissionWorkspace } from "@/components/MissionWorkspace";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -82,6 +83,7 @@ export default async function MissionPage({ params }: { params: Promise<{ slug: 
               criteria={mission.criteriaList}
               xp={mission.xp}
               aiEnabled={aiConfigured()}
+              showAi={AI_ENABLED}
               progress={
                 progress
                   ? {

@@ -444,9 +444,9 @@ Uma apresentação de serviço clara tem: problema do cliente, solução, proces
 - Plano de estudos semanal.
 - Etapas de um projeto com prazos.
 
-O **Assistente IA da NovaDigital** foi preparado para ajudar nessas tarefas considerando o seu plano e o seu progresso na plataforma.`,
+Ferramentas de IA da Biblioteca de Ferramentas ajudam nessas tarefas. Dê contexto sobre você, o público e o prazo, e ajuste o resultado à sua realidade.`,
             exercise:
-              "Peça ao Assistente IA um calendário de conteúdo de 2 semanas para um nicho e ajuste-o à sua realidade.",
+              "Peça a uma ferramenta de IA um calendário de conteúdo de 2 semanas para um nicho e ajuste-o à sua realidade.",
           },
           {
             title: "Automação de tarefas",
@@ -630,7 +630,7 @@ Repita o que entendeu: "Então hoje a maior parte dos clientes vem por indicaç�
 ## Próximo passo claro
 
 Termine sempre combinando o que acontece depois: envio de proposta, nova reunião ou um retorno em data definida.`,
-            exercise: "Pratique uma conversa simulada com um colega ou com o Assistente IA e anote as respostas para as perguntas desta aula.",
+            exercise: "Pratique uma conversa simulada com um colega (ou com uma ferramenta de IA fazendo o papel do cliente) e anote as respostas para as perguntas desta aula.",
           },
         ],
       },

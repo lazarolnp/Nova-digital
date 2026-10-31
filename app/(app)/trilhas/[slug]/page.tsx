@@ -7,6 +7,7 @@ import { listMissions, listTrails } from "@/lib/content";
 import { planOf } from "@/lib/access";
 import { trailAssistant } from "@/lib/seed";
 import { Progress } from "@/components/Progress";
+import { AI_ENABLED } from "@/lib/features";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   return { title: trailAssistant((await params).slug)?.title ?? "Trilha" };
@@ -42,7 +43,7 @@ export default async function TrailPage({ params }: { params: Promise<{ slug: st
         </p>
       </div>
 
-      <div className="grid grid-3">
+      <div className={`grid ${AI_ENABLED ? "grid-3" : "grid-2"}`}>
         <div className="card stack">
           <div className="label">Seu progresso</div>
           <div className="stat">{lessons ? Math.round((done / lessons) * 100) : 0}%</div>
@@ -51,6 +52,7 @@ export default async function TrailPage({ params }: { params: Promise<{ slug: st
             {done} de {lessons} aulas · {trail.missions.done} de {trail.missions.total} missões
           </span>
         </div>
+        {AI_ENABLED ? (
         <div className="card stack">
           <div className="row" style={{ gap: 8 }}>
             <div className="icon-box">
@@ -66,6 +68,7 @@ export default async function TrailPage({ params }: { params: Promise<{ slug: st
             Conversar com o especialista
           </Link>
         </div>
+        ) : null}
         <div className="card stack">
           <div className="row" style={{ gap: 8 }}>
             <div className="icon-box">

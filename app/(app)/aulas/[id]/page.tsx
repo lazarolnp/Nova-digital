@@ -9,6 +9,7 @@ import { canAccessLesson, planOf } from "@/lib/access";
 import { intParam } from "@/lib/validation";
 import { videoEmbed } from "@/lib/video";
 import { Markdown } from "@/components/Markdown";
+import { AI_ENABLED } from "@/lib/features";
 import { CompleteLessonButton, LessonNotesForm } from "@/components/LessonActions";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -119,6 +120,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                 </div>
               </div>
             ) : null}
+            {AI_ENABLED ? (
             <div className="card">
               <h2 className="card-title">Ficou com dúvida?</h2>
               <p className="small muted" style={{ marginTop: 6 }}>
@@ -128,6 +130,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                 Perguntar ao assistente
               </Link>
             </div>
+            ) : null}
           </aside>
         </div>
       )}

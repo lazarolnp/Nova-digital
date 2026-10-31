@@ -42,5 +42,3 @@ Inclua contexto, tarefa, formato e restrições. Revise sempre e confirme inform
 ## Estrutura de proposta
 
 Problema, solução, escopo (incluído e não incluído), etapas e prazos, investimento e próximos passos.
-
-*Use o Mentor de Marketing Digital na plataforma para tirar dúvidas sobre esta trilha.*

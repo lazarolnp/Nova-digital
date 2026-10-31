@@ -59,6 +59,6 @@ Nunca compartilhe senhas ou códigos de verificação por mensagem e prefira apr
 
 ## Próximos passos na NovaDigital
 
-Na NovaDigital você encontra uma trilha completa para cada caminho, com aulas, exercícios, missões práticas, um assistente de IA especialista em cada tema e um plano de 30 dias montado para a sua rotina.
+Na NovaDigital você encontra uma trilha completa para cada caminho, com aulas, exercícios, missões práticas, um guia em PDF de cada trilha e um plano de 30 dias montado para a sua rotina.
 
 *Este guia é educativo. Resultados dependem de dedicação, prática e mercado.*

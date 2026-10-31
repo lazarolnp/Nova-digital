@@ -47,5 +47,3 @@ Exemplo: assinatura de R$ 49 com churn mensal de 5% resulta em permanência méd
 ## Cuidados
 
 Ferramentas no-code e IA aceleram, mas você precisa revisar e testar tudo. Valide antes de investir meses construindo.
-
-*Use o Mentor de SaaS na plataforma para tirar dúvidas sobre esta trilha.*

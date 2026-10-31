@@ -48,5 +48,3 @@ Páginas e seções incluídas, quem fornece textos e imagens, número de revis�
 - **No-code:** ferramentas que permitem construir sem programar.
 - **SEO:** práticas que ajudam a página a ser encontrada em buscadores.
 - **Domínio:** o endereço do site, como nomedaempresa.com.br.
-
-*Use o Mentor de Sites na plataforma para tirar dúvidas sobre esta trilha.*

@@ -7,7 +7,7 @@ const sans = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans", di
 export const metadata: Metadata = {
   title: { default: "NovaDigital — Aprenda marketing digital na prática", template: "%s · NovaDigital" },
   description:
-    "Plataforma para iniciantes aprenderem marketing digital com trilhas, missões práticas, ferramentas, plano de 30 dias e assistente de IA.",
+    "Plataforma para iniciantes aprenderem marketing digital com trilhas, missões práticas, ferramentas, plano de 30 dias e guias em PDF.",
 };
 
 export const viewport: Viewport = { themeColor: "#120b10", width: "device-width", initialScale: 1 };

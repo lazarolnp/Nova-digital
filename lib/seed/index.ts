@@ -17,10 +17,11 @@ export function trailAssistant(slug: string) {
 
 /**
  * Versão do conteúdo inicial. Ao mudar o conteúdo em lib/seed, aumente este número:
- * - versões >= ADDITIVE_FROM recebem só o que é novo (trilhas, missões e ferramentas), sem zerar progresso;
+ * - versões >= ADDITIVE_FROM recebem o que é novo (trilhas, missões e ferramentas) e os textos atualizados
+ *   das aulas e missões existentes, sem zerar progresso;
  * - versões mais antigas são ressincronizadas por completo.
  */
-export const CONTENT_VERSION = 3;
+export const CONTENT_VERSION = 4;
 const ADDITIVE_FROM = 2;
 
 export const DEFAULT_SETTINGS: Record<string, string> = {
@@ -93,6 +94,35 @@ function missionAndToolStatements(): InStatement[] {
   return stmts;
 }
 
+/** Atualiza textos das aulas (por curso e título) e das missões (por slug) que já existem no banco. */
+function refreshStatements(): InStatement[] {
+  const stmts: InStatement[] = [];
+  for (const t of SEED_TRAILS) {
+    for (const c of t.courses) {
+      for (const m of c.modules) {
+        for (const l of m.lessons) {
+          stmts.push({
+            sql: `UPDATE lessons SET content = ?, exercise = ?, materials = ?
+                  WHERE title = ? AND module_id IN (SELECT id FROM modules WHERE course_id = ${COURSE_ID})`,
+            args: [l.content, l.exercise, JSON.stringify(l.materials ?? []), l.title, c.slug],
+          });
+        }
+      }
+    }
+  }
+  for (const m of SEED_MISSIONS) {
+    stmts.push({
+      sql: "UPDATE missions SET title = ?, objective = ?, steps = ?, tools = ?, checklist = ?, criteria = ? WHERE slug = ?",
+      args: [m.title, m.objective, JSON.stringify(m.steps), JSON.stringify(m.tools), JSON.stringify(m.checklist), JSON.stringify(m.criteria), m.slug],
+    });
+  }
+  stmts.push({
+    sql: "UPDATE plan_items SET detail = ? WHERE kind = 'acao' AND title = 'Prática livre'",
+    args: ["Refaça um exercício, melhore um projeto do portfólio ou revise o guia em PDF da sua trilha."],
+  });
+  return stmts;
+}
+
 /** Ordem de exibição das trilhas e cursos conforme SEED_TRAILS. */
 function orderStatements(): InStatement[] {
   return SEED_TRAILS.flatMap((t, ti) => [
@@ -121,7 +151,7 @@ const RESET_STATEMENTS: InStatement[] = [
   "DELETE FROM tools",
   "DELETE FROM trails",
   `INSERT INTO notifications (user_id, kind, title, body, link)
-     SELECT id, 'sistema', 'As trilhas foram reorganizadas', 'Agora cada forma do digital tem sua trilha, com assistente de IA e guia em PDF. Refaça seu plano de 30 dias.', '/onboarding'
+     SELECT id, 'sistema', 'As trilhas foram reorganizadas', 'Agora cada forma do digital tem sua trilha, com missões e guia em PDF. Refaça seu plano de 30 dias.', '/onboarding'
      FROM users WHERE onboarded = 1`,
   "UPDATE users SET onboarded = 0",
 ];
@@ -156,11 +186,12 @@ export async function seedIfEmpty(db: Client) {
     stmts = [
       ...added.flatMap((t) => trailStatements(t, SEED_TRAILS.indexOf(t))),
       ...missionAndToolStatements(),
+      ...refreshStatements(),
       ...orderStatements(),
       ...added.map((t) => ({
         sql: `INSERT INTO notifications (user_id, kind, title, body, link)
               SELECT id, 'sistema', ?, ?, ? FROM users`,
-        args: [`Nova trilha: ${t.title}`, `${t.subtitle}. Já está disponível em Trilhas, com assistente de IA e guia em PDF.`, `/trilhas/${t.slug}`],
+        args: [`Nova trilha: ${t.title}`, `${t.subtitle}. Já está disponível em Trilhas, com missões e guia em PDF.`, `/trilhas/${t.slug}`],
       })),
       versionStatement(),
     ];

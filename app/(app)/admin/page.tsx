@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { aiConfigured, AI_MODEL } from "@/lib/ai";
+import { AI_ENABLED } from "@/lib/features";
 import { AdminHeader } from "@/components/AdminUI";
 
 export const metadata: Metadata = { title: "Administração" };
@@ -47,7 +48,7 @@ export default async function AdminHome() {
         <div className="card">
           <h2 className="card-title">Assistente de IA</h2>
           <p className="small muted" style={{ marginTop: 8 }}>
-            {aiConfigured() ? `Configurado. Modelo: ${AI_MODEL}.` : "Não configurado. Defina ANTHROPIC_API_KEY nas variáveis de ambiente do servidor."}
+            {!AI_ENABLED ? "Desativado. Para ligar, defina AI_ENABLED=true e ANTHROPIC_API_KEY nas variáveis de ambiente." : aiConfigured() ? `Ativo. Modelo: ${AI_MODEL}.` : "Ligado, mas sem chave: defina ANTHROPIC_API_KEY nas variáveis de ambiente do servidor."}
           </p>
         </div>
       </div>

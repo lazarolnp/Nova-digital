@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Bot, CalendarCheck, CheckCircle2, Compass, FolderKanban, ShieldCheck, Target, Wrench } from "lucide-react";
+import { ArrowRight, Bot, CalendarCheck, CheckCircle2, Compass, FileText, FolderKanban, ShieldCheck, Target, Wrench } from "lucide-react";
+import { AI_ENABLED } from "@/lib/features";
 import { SEED_TRAILS } from "@/lib/seed";
 import { PublicFooter, PublicNav } from "@/components/PublicNav";
 
@@ -24,8 +25,8 @@ export default function LandingPage() {
                 Transforme a vontade de começar no digital em um <em>plano de ação</em>.
               </h1>
               <p className="lead">
-                Trilhas práticas de tráfego pago, sites, vídeo, afiliados e IA. Missões reais, ferramentas acessíveis, um plano de 30
-                dias feito para você e um assistente de IA que explica sem complicar.
+                Trilhas práticas de afiliados, low ticket, dropshipping, criação de sites, SaaS e outras formas do digital. Missões reais, ferramentas acessíveis, um plano de 30
+                dias feito para você{AI_ENABLED ? " e um assistente de IA que explica sem complicar" : " e guias em PDF para consultar quando quiser"}.
               </p>
               <div className="row" style={{ marginTop: 28 }}>
                 <Link href="/cadastro" className="btn btn-primary">
@@ -126,15 +127,27 @@ export default function LandingPage() {
                 Ferramentas reais organizadas por categoria, com indicação clara de gratuito, freemium ou pago e link oficial.
               </p>
             </div>
-            <div className="card">
-              <div className="icon-box">
-                <Bot size={18} />
+            {AI_ENABLED ? (
+              <div className="card">
+                <div className="icon-box">
+                  <Bot size={18} />
+                </div>
+                <h3 style={{ marginTop: 14 }}>Assistente de IA</h3>
+                <p className="muted small" style={{ marginTop: 8 }}>
+                  Tire dúvidas, crie planos semanais, roteiros, anúncios e propostas, e receba feedback sobre suas missões.
+                </p>
               </div>
-              <h3 style={{ marginTop: 14 }}>Assistente de IA</h3>
-              <p className="muted small" style={{ marginTop: 8 }}>
-                Tire dúvidas, crie planos semanais, roteiros, anúncios e propostas, e receba feedback sobre suas missões.
-              </p>
-            </div>
+            ) : (
+              <div className="card">
+                <div className="icon-box">
+                  <FileText size={18} />
+                </div>
+                <h3 style={{ marginTop: 14 }}>Guias em PDF</h3>
+                <p className="muted small" style={{ marginTop: 8 }}>
+                  Um guia gratuito sobre como funciona o marketing digital e um guia de cada trilha, com roteiro, checklists e glossário.
+                </p>
+              </div>
+            )}
           </div>
         </section>
 

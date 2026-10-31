@@ -17,11 +17,7 @@ const FAQ = [
   },
   {
     q: "O que está incluído no plano gratuito?",
-    a: "O curso de Fundamentos completo, as aulas introdutórias de todas as trilhas, missões iniciais, ferramentas básicas, o plano de 30 dias e o assistente de IA com limite diário. Veja a página Planos.",
-  },
-  {
-    q: "O assistente de IA pode errar?",
-    a: "Sim. Ele é uma ferramenta de apoio. Confira informações importantes (leis, preços, dados) em fontes oficiais.",
+    a: "O curso de Fundamentos completo, as aulas introdutórias de todas as trilhas, missões iniciais, ferramentas básicas, o plano de 30 dias e o guia em PDF \"Como funciona o marketing digital\". Veja a página Planos.",
   },
   {
     q: "Como funciona o portfólio público?",

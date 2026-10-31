@@ -19,6 +19,7 @@ type Props = {
   criteria: string[];
   xp: number;
   aiEnabled: boolean;
+  showAi: boolean;
   progress: {
     status: "em_andamento" | "concluida";
     checks: boolean[];
@@ -29,7 +30,7 @@ type Props = {
   } | null;
 };
 
-export function MissionWorkspace({ missionId, checklist, criteria, xp, aiEnabled, progress }: Props) {
+export function MissionWorkspace({ missionId, checklist, criteria, xp, aiEnabled, showAi, progress }: Props) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [checks, setChecks] = useState<boolean[]>(checklist.map((_, i) => Boolean(progress?.checks[i])));
@@ -140,6 +141,7 @@ export function MissionWorkspace({ missionId, checklist, criteria, xp, aiEnabled
         ))}
       </section>
 
+      {showAi ? (
       <section className="card" aria-labelledby="feedback">
         <div className="card-head">
           <h2 id="feedback" className="card-title">
@@ -168,6 +170,7 @@ export function MissionWorkspace({ missionId, checklist, criteria, xp, aiEnabled
           <p className="small muted">Salve o registro do resultado e peça uma análise com base nos critérios desta missão.</p>
         ) : null}
       </section>
+      ) : null}
 
       {!completed ? (
         <div className="card row between">

@@ -6,6 +6,7 @@ import { levelFor, totalXp, userStats } from "./progress";
 import type { User } from "./auth";
 import type { PlanId } from "./access";
 import { trailAssistant } from "./seed";
+import { AI_ENABLED } from "./features";
 
 export const AI_MODEL = process.env.AI_MODEL || "claude-opus-5-5";
 const EFFORTS = ["low", "medium", "high"] as const;
@@ -28,7 +29,7 @@ const MID_SYSTEM_MODELS = new Set([
 const FALLBACK_MODELS = new Set(["claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]);
 
 export function aiConfigured() {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  return AI_ENABLED && Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 }
 
 let client: Anthropic | null = null;

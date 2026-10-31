@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Download, FileText, Lock } from "lucide-react";
 import { FREE_GUIDE } from "@/lib/guides";
+import { AI_ENABLED } from "@/lib/features";
 import { requireOnboardedUser } from "@/lib/auth";
 import { listTrails } from "@/lib/content";
 import { planOf } from "@/lib/access";
@@ -16,7 +17,7 @@ export default async function TrailsPage() {
   const trails = await listTrails(user.id);
   return (
     <>
-      <PageHeader title="Trilhas de aprendizagem" subtitle="Seis trilhas, uma para cada forma de trabalhar no digital. Cada uma tem cursos, missões, guia em PDF e uma IA especialista." />
+      <PageHeader title="Trilhas de aprendizagem" subtitle="Seis trilhas, uma para cada forma de trabalhar no digital. Cada uma tem cursos, missões e guia em PDF." />
       <div className="card row between">
         <div className="row" style={{ flexWrap: "nowrap" }}>
           <div className="icon-box">
@@ -83,9 +84,15 @@ export default async function TrailsPage() {
                   <Link href={`/trilhas/${t.slug}`} className="btn btn-primary btn-block">
                     {done > 0 ? "Continuar trilha" : "Abrir trilha"}
                   </Link>
-                  <Link href={`/assistente?trilha=${t.slug}`} className="btn btn-block">
-                    Tirar dúvidas com a IA da trilha
-                  </Link>
+                  {AI_ENABLED ? (
+                    <Link href={`/assistente?trilha=${t.slug}`} className="btn btn-block">
+                      Tirar dúvidas com a IA da trilha
+                    </Link>
+                  ) : (
+                    <Link href={`/missoes?trilha=${t.slug}`} className="btn btn-block">
+                      Ver missões da trilha
+                    </Link>
+                  )}
                 </div>
               </div>
             </article>

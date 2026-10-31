@@ -209,10 +209,10 @@ export const SEED_MISSIONS: SeedMission[] = [
     steps: [
       "Escolha uma empresa da sua lista.",
       "Escreva a mensagem seguindo a estrutura de quatro partes.",
-      "Simule a conversa com o Assistente IA ou com um colega.",
+      "Simule a conversa com um colega ou com uma ferramenta de IA fazendo o papel do cliente.",
       "Ajuste a mensagem a partir do feedback.",
     ],
-    tools: ["Assistente IA da NovaDigital", "WhatsApp Business"],
+    tools: ["Claude ou ChatGPT", "WhatsApp Business"],
     checklist: ["Mensagem escrita", "Conversa simulada", "Mensagem ajustada"],
     criteria: ["A mensagem é personalizada", "Oferece valor antes de vender", "Termina com pergunta aberta sem pressão"],
     minutes: 45,

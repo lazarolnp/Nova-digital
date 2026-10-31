@@ -25,7 +25,7 @@ import { logoutAction } from "@/app/actions/auth";
 
 type NavItem = { href: string; label: string; icon: React.ComponentType<{ size?: number }>; count?: number };
 
-export function Sidebar({ unread, isAdmin }: { unread: number; isAdmin: boolean }) {
+export function Sidebar({ unread, isAdmin, aiEnabled }: { unread: number; isAdmin: boolean; aiEnabled: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -37,7 +37,7 @@ export function Sidebar({ unread, isAdmin }: { unread: number; isAdmin: boolean 
       items: [
         { href: "/painel", label: "Painel", icon: LayoutDashboard },
         { href: "/plano", label: "Plano de 30 dias", icon: CalendarCheck },
-        { href: "/assistente", label: "Assistente IA", icon: Bot },
+        ...(aiEnabled ? [{ href: "/assistente", label: "Assistente IA", icon: Bot }] : []),
       ],
     },
     {

@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { createTicketAction } from "@/app/actions/account";
 import { SubmitButton } from "./SubmitButton";
 
-const CATEGORIES = ["Acesso e conta", "Conteúdo e aulas", "Planos e pagamentos", "Assistente IA", "Outro"];
+const CATEGORIES = ["Acesso e conta", "Conteúdo e aulas", "Planos e pagamentos", "Outro"];
 
 export function TicketForm() {
   const [state, action] = useActionState(createTicketAction, undefined);

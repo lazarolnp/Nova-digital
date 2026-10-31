@@ -4,6 +4,7 @@ import { all, get, run } from "@/lib/db";
 import { aiUsageToday, consumeAiQuota, limit, planOf, refundAiQuota } from "@/lib/access";
 import { aiConfigured, friendlyAiError, streamChat, userContext } from "@/lib/ai";
 import { sameOrigin } from "@/lib/origin";
+import { AI_ENABLED } from "@/lib/features";
 import { trailAssistant } from "@/lib/seed";
 
 export const runtime = "nodejs";
@@ -20,6 +21,7 @@ function json(status: number, body: unknown) {
 }
 
 export async function POST(req: Request) {
+  if (!AI_ENABLED) return json(404, { error: "Assistente desativado." });
   if (!sameOrigin(req)) return json(403, { error: "Origem não permitida." });
   const user = await getUser();
   if (!user) return json(401, { error: "Faça login para usar o assistente." });

@@ -10,6 +10,7 @@ import { currentPlan, itemHref } from "@/lib/planview";
 import { Progress } from "@/components/Progress";
 import { PlanItemRow } from "@/components/PlanItemRow";
 import { XpChart } from "@/components/XpChart";
+import { AI_ENABLED } from "@/lib/features";
 
 export const metadata: Metadata = { title: "Painel" };
 
@@ -258,9 +259,15 @@ export default async function DashboardPage() {
             <Link href="/ferramentas" className="btn btn-sm">
               <Wrench size={14} /> Ferramentas
             </Link>
-            <Link href="/assistente" className="btn btn-sm">
-              <Bot size={14} /> Assistente
-            </Link>
+            {AI_ENABLED ? (
+              <Link href="/assistente" className="btn btn-sm">
+                <Bot size={14} /> Assistente
+              </Link>
+            ) : (
+              <Link href="/projetos" className="btn btn-sm">
+                <FolderKanban size={14} /> Projetos
+              </Link>
+            )}
             <Link href="/conta#conquistas" className="btn btn-sm">
               <Trophy size={14} /> Conquistas
             </Link>

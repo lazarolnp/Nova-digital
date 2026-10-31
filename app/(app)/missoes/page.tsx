@@ -61,8 +61,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
         <div className="card">
           <div className="label">Como funciona</div>
           <p className="small muted" style={{ marginTop: 8 }}>
-            Inicie a missão, siga os passos, marque o checklist e registre o resultado. Use os critérios para se autoavaliar e, se quiser,
-            peça feedback ao assistente.
+            Inicie a missão, siga os passos, marque o checklist e registre o resultado. Use os critérios para se autoavaliar.
           </p>
         </div>
       </div>

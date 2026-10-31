@@ -54,5 +54,3 @@ CPA, ticket médio, ROAS, conversão da página e do checkout, aceitação do bu
 ## Cuidados
 
 Taxas fixas pesam muito em produtos baratos. Não use escassez falsa, depoimentos inventados ou promessas de resultado. Faturamento alto não significa lucro.
-
-*Use o Mentor de Low Ticket na plataforma para tirar dúvidas sobre esta trilha.*
