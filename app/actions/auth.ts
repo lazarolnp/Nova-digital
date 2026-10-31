@@ -18,7 +18,7 @@ import {
 import { emailSchema, firstError, passwordSchema, str, type FormState } from "@/lib/validation";
 import { ONBOARDING_QUESTIONS, type OnboardingAnswers } from "@/lib/options";
 import { saveOnboardingAndPlan } from "@/lib/plan";
-import { planOf } from "@/lib/access";
+import { accessOf } from "@/lib/access";
 import { notify } from "@/lib/progress";
 
 const signupSchema = z.object({
@@ -102,7 +102,7 @@ export async function onboardingAction(_prev: FormState, fd: FormData): Promise<
   const parsed = onboardingSchema.safeParse(Object.fromEntries(Object.keys(ONBOARDING_QUESTIONS).map((k) => [k, str(fd, k)])));
   if (!parsed.success) return { error: firstError(parsed.error) };
   const first = !user.onboarded;
-  await saveOnboardingAndPlan(user.id, parsed.data as OnboardingAnswers, await planOf(user));
+  await saveOnboardingAndPlan(user.id, parsed.data as OnboardingAnswers, await accessOf(user));
   await notify(user.id, "progresso", first ? "Seu plano de 30 dias está pronto" : "Seu plano foi atualizado", "Confira as tarefas da semana.", "/plano");
   redirect("/plano?novo=1");
 }

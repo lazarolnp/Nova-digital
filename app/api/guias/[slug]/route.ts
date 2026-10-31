@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getUser } from "@/lib/auth";
-import { planOf } from "@/lib/access";
+import { accessOf, canAccessTrail } from "@/lib/access";
 import { guideBySlug } from "@/lib/guides";
 
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 
   const user = await getUser();
   if (!user) return Response.redirect(new URL("/entrar", req.url), 303);
-  if (!guide.free && (await planOf(user)) !== "premium") {
+  if (!guide.free && !canAccessTrail(await accessOf(user), guide.slug)) {
     return Response.redirect(new URL("/planos", req.url), 303);
   }
 

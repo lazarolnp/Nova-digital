@@ -89,7 +89,7 @@ export function ToolsBrowser({ tools, categories }: { tools: ToolView[]; categor
               <span className="badge">Dificuldade: {t.difficulty}</span>
               {t.locked || !t.url ? (
                 <Link href="/planos" className="btn btn-sm">
-                  <Lock size={13} /> Premium
+                  <Lock size={13} /> Planos pagos
                 </Link>
               ) : (
                 <a href={t.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm">

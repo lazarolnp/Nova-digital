@@ -4,7 +4,8 @@ import { Clock, Lock, Target, Trophy } from "lucide-react";
 import { requireOnboardedUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { listMissions } from "@/lib/content";
-import { planOf } from "@/lib/access";
+import { accessOf, canAccessPremium } from "@/lib/access";
+import { planLabel } from "@/lib/plans";
 import { levelFor, totalXp } from "@/lib/progress";
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/Progress";
@@ -17,7 +18,7 @@ function duration(min: number) {
 
 export default async function MissionsPage({ searchParams }: { searchParams: Promise<{ trilha?: string; status?: string }> }) {
   const user = await requireOnboardedUser();
-  const plan = await planOf(user);
+  const access = await accessOf(user);
   const { trilha, status } = await searchParams;
   const missions = await listMissions(user.id);
   const trails = await all<{ slug: string; title: string }>("SELECT slug, title FROM trails ORDER BY sort");
@@ -96,7 +97,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
       ) : (
         <div className="grid grid-auto">
           {filtered.map((m) => {
-            const locked = m.is_premium && plan === "free";
+            const locked = !canAccessPremium(access, m.is_premium, m.trail_slug);
             return (
               <Link key={m.id} href={`/missoes/${m.slug}`} className="card card-hover stack">
                 <div className="row between">
@@ -109,7 +110,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
                     <span className="badge badge-info">Em andamento</span>
                   ) : locked ? (
                     <span className="badge badge-warning">
-                      <Lock size={11} /> Premium
+                      <Lock size={11} /> {planLabel(m.trail_slug)}
                     </span>
                   ) : null}
                 </div>

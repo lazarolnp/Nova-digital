@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Lock, RefreshCw, Trophy } from "lucide-react";
 import { requireOnboardedUser } from "@/lib/auth";
 import { get } from "@/lib/db";
-import { activeSubscription, planOf } from "@/lib/access";
+import { accessOf } from "@/lib/access";
 import { optionLabel, ONBOARDING_QUESTIONS, type OnboardingKey } from "@/lib/options";
 import { levelFor, totalXp, unlockedAchievements } from "@/lib/progress";
 import { PageHeader } from "@/components/PageHeader";
@@ -14,8 +14,7 @@ export const metadata: Metadata = { title: "Minha conta" };
 
 export default async function AccountPage() {
   const user = await requireOnboardedUser();
-  const plan = await planOf(user);
-  const sub = await activeSubscription(user.id);
+  const access = await accessOf(user);
   const ob = await get<Record<OnboardingKey, string>>("SELECT level, area, hours, budget, goal, preference FROM onboarding WHERE user_id = ?", user.id);
   const xp = await totalXp(user.id);
   const level = levelFor(xp);
@@ -85,16 +84,24 @@ export default async function AccountPage() {
             <span className="tiny faint">{xp} XP</span>
           </div>
           <div className="card stack">
-            <div className="label">Plano</div>
-            <div className="row">
-              {plan === "premium" ? <span className="badge badge-accent">Premium</span> : <span className="badge">Gratuito</span>}
-              {user.role === "admin" ? <span className="badge badge-info">Administrador</span> : null}
-            </div>
-            {sub?.current_period_end ? (
-              <p className="small muted">Válido até {new Date(sub.current_period_end).toLocaleDateString("pt-BR")}.</p>
+            <div className="label">Seus planos</div>
+            {user.role === "admin" ? <span className="badge badge-info">Administrador: acesso a todas as trilhas</span> : null}
+            {access.plans.length ? (
+              <div className="list">
+                {access.plans.map((p) => (
+                  <div key={p.id} className="list-item" style={{ padding: "8px 0" }}>
+                    <span className="badge badge-accent">{p.name}</span>
+                    <span className="tiny faint" style={{ marginLeft: "auto" }}>
+                      {p.until ? `até ${new Date(p.until).toLocaleDateString("pt-BR")}` : "sem data de fim"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : user.role !== "admin" ? (
+              <span className="badge">Gratuito</span>
             ) : null}
             <Link href="/planos" className="btn btn-sm">
-              {plan === "premium" ? "Detalhes do plano" : "Conhecer o Premium"}
+              {access.plans.length ? "Ver ou adicionar planos" : "Conhecer os planos"}
             </Link>
           </div>
           <div className="card stack">

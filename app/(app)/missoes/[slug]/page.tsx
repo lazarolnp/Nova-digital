@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { Clock, Gauge, Lock, Sparkles, Wrench } from "lucide-react";
 import { requireOnboardedUser } from "@/lib/auth";
 import { getMission } from "@/lib/content";
-import { canAccessPremium, planOf } from "@/lib/access";
+import { accessOf, canAccessPremium } from "@/lib/access";
+import { planForTrail, planLabel } from "@/lib/plans";
 import { aiConfigured } from "@/lib/ai";
 import { AI_ENABLED } from "@/lib/features";
 import { MissionWorkspace } from "@/components/MissionWorkspace";
@@ -20,7 +21,8 @@ export default async function MissionPage({ params }: { params: Promise<{ slug: 
   const data = await getMission(slug, user.id);
   if (!data) notFound();
   const { mission, progress } = data;
-  const allowed = canAccessPremium(await planOf(user), mission.is_premium);
+  const allowed = canAccessPremium(await accessOf(user), mission.is_premium, mission.trail_slug);
+  const unlock = planForTrail(mission.trail_slug);
   const minutes = mission.est_minutes >= 60 ? `${Math.round((mission.est_minutes / 60) * 10) / 10} horas` : `${mission.est_minutes} minutos`;
 
   return (
@@ -100,10 +102,13 @@ export default async function MissionPage({ params }: { params: Promise<{ slug: 
           ) : (
             <div className="card empty">
               <Lock size={28} />
-              <h2 className="card-title">Missão do plano Premium</h2>
-              <p className="muted">Você pode ver o objetivo e os passos. Para registrar e concluir esta missão, conheça o Premium.</p>
-              <Link href="/planos" className="btn btn-primary">
-                Conhecer o Premium
+              <h2 className="card-title">Missão do {planLabel(mission.trail_slug)}</h2>
+              <p className="muted">
+                Você pode ver o objetivo e os passos. Para registrar e concluir esta missão, assine o plano{" "}
+                {unlock ? `${unlock.name} ou o Completo` : "Completo"}.
+              </p>
+              <Link href={`/planos#plano-${unlock?.id ?? "completo"}`} className="btn btn-primary">
+                Ver planos
               </Link>
             </div>
           )}

@@ -5,7 +5,8 @@ import { FREE_GUIDE } from "@/lib/guides";
 import { AI_ENABLED } from "@/lib/features";
 import { requireOnboardedUser } from "@/lib/auth";
 import { listTrails } from "@/lib/content";
-import { planOf } from "@/lib/access";
+import { accessOf, canAccessTrail } from "@/lib/access";
+import { planLabel } from "@/lib/plans";
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/Progress";
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = { title: "Trilhas" };
 
 export default async function TrailsPage() {
   const user = await requireOnboardedUser();
-  const plan = await planOf(user);
+  const access = await accessOf(user);
   const trails = await listTrails(user.id);
   return (
     <>
@@ -37,7 +38,7 @@ export default async function TrailsPage() {
           const lessons = t.courses.reduce((s, c) => s + c.lessons, 0);
           const done = t.courses.reduce((s, c) => s + c.done, 0);
           const pct = lessons ? (done / lessons) * 100 : 0;
-          const locked = plan === "free" && t.courses.some((c) => c.is_premium);
+          const locked = !canAccessTrail(access, t.slug) && t.courses.some((c) => c.is_premium);
           return (
             <article key={t.slug} className="card">
               <div className="grid grid-3" style={{ alignItems: "start" }}>
@@ -47,7 +48,7 @@ export default async function TrailsPage() {
                     <span className="badge">{t.level_label}</span>
                     {locked ? (
                       <span className="badge badge-warning">
-                        <Lock size={11} /> Introdução gratuita · completa no Premium
+                        <Lock size={11} /> Introdução gratuita · completa no {planLabel(t.slug)}
                       </span>
                     ) : (
                       <span className="badge badge-success">Liberada</span>

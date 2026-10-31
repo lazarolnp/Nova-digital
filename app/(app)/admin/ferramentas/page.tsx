@@ -25,7 +25,7 @@ function ToolFields({ t }: { t?: ToolRow }) {
           <option>Avançado</option>
         </select>
         <label className="check" htmlFor={`${p}premium`}>
-          <input id={`${p}premium`} type="checkbox" name="is_premium" defaultChecked={t?.is_premium === 1} /> <span>Exclusiva Premium</span>
+          <input id={`${p}premium`} type="checkbox" name="is_premium" defaultChecked={t?.is_premium === 1} /> <span>Exclusiva de planos pagos</span>
         </label>
       </div>
       <textarea name="description" className="textarea" style={{ minHeight: 60 }} defaultValue={t?.description} placeholder="Descrição" aria-label="Descrição" required />

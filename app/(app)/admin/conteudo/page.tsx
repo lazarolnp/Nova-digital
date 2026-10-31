@@ -89,7 +89,7 @@ export default async function AdminCourses({ searchParams }: { searchParams: Fla
         </div>
         <div className="row">
           <label className="check">
-            <input type="checkbox" name="is_premium" /> <span>Premium</span>
+            <input type="checkbox" name="is_premium" /> <span>Pago (liberado pelo plano da trilha)</span>
           </label>
           <label className="check">
             <input type="checkbox" name="published" /> <span>Publicado</span>

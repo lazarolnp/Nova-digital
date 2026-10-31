@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/auth";
 import { setSetting } from "@/lib/access";
 import { notify } from "@/lib/progress";
 import { productMappings } from "@/lib/payments";
+import { PAID_PLANS, paidPlan } from "@/lib/plans";
 import { firstError, str } from "@/lib/validation";
 
 function back(path: string, params: { ok?: string; erro?: string }): never {
@@ -325,8 +326,10 @@ export async function setRoleAction(userId: number, fd: FormData) {
   back("/admin/usuarios", { ok: "Papel atualizado." });
 }
 
-export async function grantPremiumAction(userId: number, fd: FormData) {
+export async function grantPlanAction(userId: number, fd: FormData) {
   await requireAdmin();
+  const plan = paidPlan(str(fd, "plan"));
+  if (!plan) back("/admin/usuarios", { erro: "Escolha um plano." });
   const until = str(fd, "until");
   let end: string | null = null;
   if (until) {
@@ -334,19 +337,20 @@ export async function grantPremiumAction(userId: number, fd: FormData) {
     if (Number.isNaN(d.getTime()) || d.getTime() < Date.now()) back("/admin/usuarios", { erro: "Data de validade inválida." });
     end = d.toISOString();
   }
-  await run("UPDATE subscriptions SET status = 'canceled' WHERE user_id = ? AND status = 'active'", userId);
-  await run("INSERT INTO subscriptions (user_id, plan, status, provider, current_period_end) VALUES (?, 'premium', 'active', 'manual', ?)", userId, end);
-  await notify(userId, "sistema", "Seu acesso Premium foi liberado", "Aproveite o catálogo completo. Refaça seu plano para incluir o conteúdo premium.", "/onboarding");
-  back("/admin/usuarios", { ok: "Premium concedido." });
+  await run("UPDATE subscriptions SET status = 'canceled' WHERE user_id = ? AND status = 'active' AND plan = ?", userId, plan.id);
+  await run("INSERT INTO subscriptions (user_id, plan, status, provider, current_period_end) VALUES (?, ?, 'active', 'manual', ?)", userId, plan.id, end);
+  await notify(userId, "sistema", `Plano ${plan.name} liberado`, "Refaça seu plano de 30 dias para incluir o novo conteúdo.", "/onboarding");
+  back("/admin/usuarios", { ok: `Plano ${plan.name} concedido.` });
 }
 
-export async function revokePremiumAction(userId: number) {
+export async function revokePlanAction(userId: number, planId: string) {
   await requireAdmin();
-  await run("UPDATE subscriptions SET status = 'canceled' WHERE user_id = ? AND status = 'active'", userId);
-  back("/admin/usuarios", { ok: "Premium revogado." });
+  // Assinaturas antigas gravadas como "premium" equivalem ao Completo.
+  const ids = planId === "completo" ? ["completo", "premium"] : [planId];
+  for (const id of ids) await run("UPDATE subscriptions SET status = 'canceled' WHERE user_id = ? AND status = 'active' AND plan = ?", userId, id);
+  back("/admin/usuarios", { ok: "Plano revogado." });
 }
 
-// ---- Configurações ----
 const LIMIT_KEYS = ["limit.free.ai_messages_per_day", "limit.premium.ai_messages_per_day", "limit.free.max_projects", "limit.premium.max_projects"];
 
 export async function saveSettingsAction(fd: FormData) {
@@ -356,12 +360,16 @@ export async function saveSettingsAction(fd: FormData) {
     if (!/^\d{1,5}$/.test(v)) back("/admin/configuracoes", { erro: "Os limites devem ser números inteiros entre 0 e 99999." });
     await setSetting(key, v);
   }
-  const price = str(fd, "billing.premium_price_label").trim();
-  const checkout = str(fd, "billing.checkout_url").trim();
-  if (price.length > 60) back("/admin/configuracoes", { erro: "O texto de preço pode ter no máximo 60 caracteres." });
-  if (checkout && !httpUrl.test(checkout)) back("/admin/configuracoes", { erro: "O link de checkout deve começar com https://" });
-  await setSetting("billing.premium_price_label", price);
-  await setSetting("billing.checkout_url", checkout);
+  for (const p of PAID_PLANS) {
+    for (const period of ["monthly", "annual"] as const) {
+      const price = str(fd, `plan.${p.id}.price_${period}`).trim().replace(",", ".");
+      if (!/^\d{1,5}(\.\d{1,2})?$/.test(price)) back("/admin/configuracoes", { erro: `Preço inválido no plano ${p.name}. Use números, ex.: 47 ou 47.90.` });
+      const checkout = str(fd, `plan.${p.id}.checkout_${period}`).trim();
+      if (checkout && !httpUrl.test(checkout)) back("/admin/configuracoes", { erro: `O link de checkout do plano ${p.name} deve começar com https://` });
+      await setSetting(`plan.${p.id}.price_${period}`, price);
+      await setSetting(`plan.${p.id}.checkout_${period}`, checkout);
+    }
+  }
   back("/admin/configuracoes", { ok: "Configurações salvas." });
 }
 
@@ -387,9 +395,11 @@ export async function addProductMappingAction(fd: FormData) {
   if (!/^[\w-]{3,80}$/.test(ref)) back("/admin/pagamentos", { erro: "Cole o ID do produto ou do plano da Kiwify (letras, números e hífens)." });
   const list = await productMappings();
   if (list.some((m) => m.ref === ref)) back("/admin/pagamentos", { erro: "Este ID já está cadastrado." });
-  list.push({ ref, label: label || ref, plan: "premium" });
+  const plan = paidPlan(str(fd, "plan"));
+  if (!plan) back("/admin/pagamentos", { erro: "Escolha o plano que este produto libera." });
+  list.push({ ref, label: label || ref, plan: plan.id });
   await setSetting("kiwify.product_map", JSON.stringify(list));
-  back("/admin/pagamentos", { ok: "Produto vinculado ao plano Premium." });
+  back("/admin/pagamentos", { ok: `Produto vinculado ao plano ${plan.name}.` });
 }
 
 export async function removeProductMappingAction(ref: string) {

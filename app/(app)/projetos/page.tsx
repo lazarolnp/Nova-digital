@@ -74,7 +74,7 @@ export default async function ProjectsPage() {
           {atLimit && plan === "free" ? (
             <>
               {" "}
-              · <Link href="/planos" style={{ color: "var(--accent-text)" }}>ampliar no Premium</Link>
+              · <Link href="/planos" style={{ color: "var(--accent-text)" }}>ampliar com um plano pago</Link>
             </>
           ) : null}
         </span>

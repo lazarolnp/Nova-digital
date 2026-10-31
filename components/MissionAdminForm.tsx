@@ -85,7 +85,7 @@ export function MissionAdminForm({ mission, trails }: { mission: M | null; trail
       </div>
       <div className="row">
         <label className="check">
-          <input type="checkbox" name="is_premium" defaultChecked={m?.is_premium === 1} /> <span>Premium</span>
+          <input type="checkbox" name="is_premium" defaultChecked={m?.is_premium === 1} /> <span>Paga (liberada pelo plano da trilha)</span>
         </label>
         <label className="check">
           <input type="checkbox" name="published" defaultChecked={m ? m.published === 1 : true} /> <span>Publicada</span>

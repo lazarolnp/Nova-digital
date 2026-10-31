@@ -116,12 +116,21 @@ A Vercel não tem disco permanente, então o banco fica no **Turso** (SQLite hos
 - **IA** (`lib/ai.ts`, `app/api/assistente/route.ts`): SDK oficial da Anthropic, streaming, contexto do aluno e catálogo, limite diário configurável por plano, verificação de origem contra CSRF.
 - **Visual**: tokens CSS com tema escuro (padrão) e claro, responsivo, baseado na identidade dos prints de referência.
 
-### Pagamentos (Kiwify)
+### Planos e pagamentos (Kiwify)
 
-O acesso Premium é liberado automaticamente quando a Kiwify confirma o pagamento:
+| Plano | Libera | Mensal | Anual |
+|---|---|---|---|
+| Gratuito | Guia "Como funciona", curso de Fundamentos, aulas introdutórias, missões iniciais | R$ 0 | — |
+| Afiliados | Trilha Afiliados | R$ 47 | R$ 397 |
+| Low ticket | Trilha Low ticket | R$ 47 | R$ 397 |
+| Outras formas do digital | Trilha Outras formas | R$ 47 | R$ 397 |
+| Criação de sites | Trilha Criação de sites | R$ 57 | R$ 477 |
+| Dropshipping | Trilha Dropshipping | R$ 67 | R$ 557 |
+| Criação de SaaS | Trilha Criação de SaaS | R$ 67 | R$ 557 |
+| Completo | Todas as trilhas | R$ 127 | R$ 997 |
 
-1. A Kiwify envia um webhook para `/api/pagamentos/kiwify`. O site confere a assinatura HMAC-SHA1 com o token (`KIWIFY_WEBHOOK_TOKEN`) e recusa avisos falsos.
-2. O acesso fica vinculado ao **e-mail do comprador** (tabela `external_subscriptions`). Quem compra antes de criar conta recebe o Premium ao se cadastrar com o mesmo e-mail.
-3. Renovação estende o acesso; cancelamento mantém até o fim do período pago; reembolso e chargeback removem na hora.
-
-Configuração e registro dos eventos recebidos: **Admin → Pagamentos**. O administrador também pode conceder o Premium manualmente em **Admin → Usuários**.
+- Planos definidos em `lib/plans.ts`; preços e links de checkout editáveis em **Admin → Planos e limites**.
+- Cada plano libera cursos, missões e guia em PDF da sua trilha. O aluno pode ter vários planos ao mesmo tempo.
+- A Kiwify avisa o site por webhook (`/api/pagamentos/kiwify`, assinatura HMAC-SHA1 com `KIWIFY_WEBHOOK_TOKEN`). Em **Admin → Pagamentos**, cada produto da Kiwify é vinculado a um plano; compras de produtos não vinculados não liberam acesso e geram aviso aos administradores.
+- O acesso fica ligado ao e-mail do comprador. Renovação estende, cancelamento mantém até o fim do período pago, reembolso e chargeback removem.
+- Planos também podem ser concedidos manualmente em **Admin → Usuários**. Assinaturas antigas "premium" equivalem ao Completo.

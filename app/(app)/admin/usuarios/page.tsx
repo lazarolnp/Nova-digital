@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
 import { all } from "@/lib/db";
-import { grantPremiumAction, revokePremiumAction, setRoleAction } from "@/app/actions/admin";
+import { accessOf } from "@/lib/access";
+import { PAID_PLANS } from "@/lib/plans";
+import { grantPlanAction, revokePlanAction, setRoleAction } from "@/app/actions/admin";
 import { AdminHeader } from "@/components/AdminUI";
 
 export const metadata: Metadata = { title: "Admin · Usuários" };
@@ -10,19 +12,15 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
   const me = await requireAdmin();
   const { q, ...flash } = await searchParams;
   const term = (q ?? "").trim().slice(0, 80);
-  const now = new Date().toISOString();
-  const users = await all<{ id: number; name: string; email: string; role: string; created_at: string; premium: number; until: string | null; kiwify: string | null; waitlist: number; xp: number }>(
-    `SELECT u.id, u.name, u.email, u.role, u.created_at,
-       EXISTS (SELECT 1 FROM subscriptions s WHERE s.user_id = u.id AND s.status = 'active' AND (s.current_period_end IS NULL OR s.current_period_end > ?)) AS premium,
-       (SELECT s.current_period_end FROM subscriptions s WHERE s.user_id = u.id AND s.status = 'active' ORDER BY s.id DESC LIMIT 1) AS until,
-       (SELECT COALESCE(es.access_until, 'sem-fim') FROM external_subscriptions es WHERE es.email = u.email AND (
-          (es.status = 'active' AND (es.access_until IS NULL OR es.access_until > ?)) OR (es.status = 'canceled' AND es.access_until > ?))
-        ORDER BY es.access_until DESC LIMIT 1) AS kiwify,
+  const users = await all<{ id: number; name: string; email: string; role: "user" | "admin"; waitlist: number; xp: number }>(
+    `SELECT u.id, u.name, u.email, u.role,
        EXISTS (SELECT 1 FROM waitlist w WHERE w.user_id = u.id) AS waitlist,
        (SELECT COALESCE(SUM(xp), 0) FROM xp_events x WHERE x.user_id = u.id) AS xp
      FROM users u ${term ? "WHERE u.name LIKE ? OR u.email LIKE ?" : ""} ORDER BY u.id DESC LIMIT 100`,
-    ...(term ? [now, now, now, `%${term}%`, `%${term}%`] : [now, now, now]),
+    ...(term ? [`%${term}%`, `%${term}%`] : []),
   );
+  const rows = await Promise.all(users.map(async (u) => ({ ...u, access: await accessOf({ id: u.id, role: "user", email: u.email }) })));
+
   return (
     <>
       <AdminHeader title="Usuários" active="/admin/usuarios" {...flash} />
@@ -39,11 +37,11 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
               <th>Usuário</th>
               <th>XP</th>
               <th>Papel</th>
-              <th>Plano</th>
+              <th>Planos</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {rows.map((u) => (
               <tr key={u.id}>
                 <td>
                   <strong>{u.name}</strong>
@@ -65,35 +63,45 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
                   </form>
                 </td>
                 <td>
-                  {u.kiwify ? (
-                    <div className="small" style={{ marginBottom: 6 }}>
-                      <span className="badge badge-success">Kiwify{u.kiwify !== "sem-fim" ? ` até ${new Date(u.kiwify).toLocaleDateString("pt-BR")}` : ""}</span>
-                    </div>
-                  ) : null}
-                  {u.premium ? (
-                    <div className="row">
-                      <span className="badge badge-accent">Premium{u.until ? ` até ${new Date(u.until).toLocaleDateString("pt-BR")}` : ""}</span>
-                      <form action={revokePremiumAction.bind(null, u.id)}>
-                        <button type="submit" className="btn btn-sm btn-danger">
-                          Revogar
-                        </button>
-                      </form>
-                    </div>
-                  ) : (
-                    <form action={grantPremiumAction.bind(null, u.id)} className="row" style={{ flexWrap: "nowrap" }}>
-                      <input type="date" name="until" className="input" aria-label="Válido até (opcional)" style={{ maxWidth: 170 }} />
+                  <div className="stack" style={{ gap: 8 }}>
+                    {u.access.plans.map((p) => (
+                      <div key={p.id} className="row" style={{ gap: 6 }}>
+                        <span className={`badge ${p.source === "kiwify" ? "badge-success" : "badge-accent"}`}>
+                          {p.name} · {p.source === "kiwify" ? "Kiwify" : "manual"}
+                          {p.until ? ` · até ${new Date(p.until).toLocaleDateString("pt-BR")}` : ""}
+                        </span>
+                        {p.source === "manual" ? (
+                          <form action={revokePlanAction.bind(null, u.id, p.id)}>
+                            <button type="submit" className="btn btn-sm btn-danger">
+                              Revogar
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
+                    ))}
+                    <form action={grantPlanAction.bind(null, u.id)} className="row" style={{ gap: 6 }}>
+                      <select name="plan" className="select" aria-label={`Plano para ${u.name}`} style={{ maxWidth: 190 }} defaultValue="completo">
+                        {PAID_PLANS.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input type="date" name="until" className="input" aria-label="Válido até (opcional)" style={{ maxWidth: 160 }} />
                       <button type="submit" className="btn btn-sm">
-                        Conceder Premium
+                        Conceder
                       </button>
                     </form>
-                  )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="tiny faint">Sem data, o acesso Premium manual não expira. Assinaturas de um provedor de pagamento aparecem aqui quando integradas.</p>
+      <p className="tiny faint">
+        Sem data, o plano concedido manualmente não expira. Planos comprados na Kiwify são controlados pela Kiwify (renovação, cancelamento e reembolso).
+      </p>
     </>
   );
 }

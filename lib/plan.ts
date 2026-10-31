@@ -2,7 +2,7 @@ import "server-only";
 import type { InStatement } from "@libsql/client";
 import { all, batch, get, run } from "./db";
 import { AREA_TO_TRAIL, type OnboardingAnswers, optionLabel } from "./options";
-import { canAccessLesson, type PlanId } from "./access";
+import { canAccessLesson, canAccessPremium, type Access } from "./access";
 
 type Task = {
   kind: "aula" | "missao" | "projeto" | "acao";
@@ -21,16 +21,16 @@ const STUDY_DAYS: Record<string, number[]> = {
 const WEEKLY_MINUTES: Record<string, number> = { "2-4": 180, "5-8": 390, "9-15": 720, "16+": 1080 };
 
 /** Aulas acessíveis de uma trilha inteira ou de um curso específico, na ordem do conteúdo. */
-async function lessonsOf(where: { trail: string } | { course: string }, plan: PlanId): Promise<Task[]> {
+async function lessonsOf(where: { trail: string } | { course: string }, plan: Access): Promise<Task[]> {
   const byTrail = "trail" in where;
-  const rows = await all<{ id: number; title: string; duration_min: number; is_premium: number; is_free_preview: number; course: string }>(
-    `SELECT l.id, l.title, l.duration_min, c.is_premium, l.is_free_preview, c.title AS course
+  const rows = await all<{ id: number; title: string; duration_min: number; is_premium: number; is_free_preview: number; course: string; trail: string }>(
+    `SELECT l.id, l.title, l.duration_min, c.is_premium, l.is_free_preview, c.title AS course, t.slug AS trail
      FROM trails t JOIN courses c ON c.trail_id = t.id JOIN modules m ON m.course_id = c.id JOIN lessons l ON l.module_id = m.id
      WHERE ${byTrail ? "t.slug" : "c.slug"} = ? AND c.published = 1 ORDER BY c.sort, m.sort, l.sort`,
     byTrail ? where.trail : where.course,
   );
   return rows
-    .filter((r) => canAccessLesson(plan, r.is_premium, r.is_free_preview))
+    .filter((r) => canAccessLesson(plan, r.trail, r.is_premium, r.is_free_preview))
     .map((r) => ({
       kind: "aula" as const,
       refId: r.id,
@@ -41,29 +41,29 @@ async function lessonsOf(where: { trail: string } | { course: string }, plan: Pl
     }));
 }
 
-async function trailMissions(trailSlug: string, plan: PlanId): Promise<Task[]> {
+async function trailMissions(trailSlug: string, plan: Access): Promise<Task[]> {
   const rows = await all<{ id: number; title: string; est_minutes: number; is_premium: number }>(
     `SELECT m.id, m.title, m.est_minutes, m.is_premium FROM missions m JOIN trails t ON t.id = m.trail_id
      WHERE t.slug = ? AND m.published = 1 ORDER BY m.sort`,
     trailSlug,
   );
   return rows
-    .filter((m) => plan === "premium" || !m.is_premium)
+    .filter((m) => canAccessPremium(plan, m.is_premium, trailSlug))
     .map((m) => ({ kind: "missao" as const, refId: m.id, title: m.title, detail: "Missão prática — registre o resultado ao concluir", minutes: m.est_minutes }));
 }
 
-async function missionBySlug(slug: string, plan: PlanId): Promise<Task | null> {
-  const m = await get<{ id: number; title: string; est_minutes: number; is_premium: number }>(
-    "SELECT id, title, est_minutes, is_premium FROM missions WHERE slug = ? AND published = 1",
+async function missionBySlug(slug: string, plan: Access): Promise<Task | null> {
+  const m = await get<{ id: number; title: string; est_minutes: number; is_premium: number; trail: string | null }>(
+    "SELECT m.id, m.title, m.est_minutes, m.is_premium, t.slug AS trail FROM missions m LEFT JOIN trails t ON t.id = m.trail_id WHERE m.slug = ? AND m.published = 1",
     slug,
   );
-  if (!m || (m.is_premium && plan !== "premium")) return null;
+  if (!m || !canAccessPremium(plan, m.is_premium, m.trail)) return null;
   return { kind: "missao", refId: m.id, title: m.title, detail: "Missão prática — registre o resultado ao concluir", minutes: m.est_minutes };
 }
 
 const action = (title: string, detail: string, minutes = 30): Task => ({ kind: "acao", refId: null, title, detail, minutes });
 
-export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
+export async function buildPlan(a: OnboardingAnswers, plan: Access) {
   const focusTrail = AREA_TO_TRAIL[a.area] ?? "outras-formas";
   const queue: Task[] = [];
   const seen = new Set<string>();
@@ -210,7 +210,7 @@ export async function buildPlan(a: OnboardingAnswers, plan: PlanId) {
   return { items, weeklyGoals, summary, leftover };
 }
 
-export async function saveOnboardingAndPlan(userId: number, a: OnboardingAnswers, plan: PlanId) {
+export async function saveOnboardingAndPlan(userId: number, a: OnboardingAnswers, plan: Access) {
   const built = await buildPlan(a, plan);
   // O plano novo é referenciado por subconsulta, permitindo gravar tudo num único lote atômico.
   const planRef = "(SELECT MAX(id) FROM plans WHERE user_id = ?)";

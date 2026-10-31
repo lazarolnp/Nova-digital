@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { Bot, Download, FileText, Lock, Target } from "lucide-react";
 import { requireOnboardedUser } from "@/lib/auth";
 import { listMissions, listTrails } from "@/lib/content";
-import { planOf } from "@/lib/access";
+import { accessOf, canAccessPremium, canAccessTrail } from "@/lib/access";
+import { planForTrail, planLabel } from "@/lib/plans";
 import { trailAssistant } from "@/lib/seed";
 import { Progress } from "@/components/Progress";
 import { AI_ENABLED } from "@/lib/features";
@@ -19,11 +20,12 @@ export default async function TrailPage({ params }: { params: Promise<{ slug: st
   const trail = (await listTrails(user.id)).find((t) => t.slug === slug);
   const seed = trailAssistant(slug);
   if (!trail || !seed) notFound();
-  const plan = await planOf(user);
+  const access = await accessOf(user);
+  const unlock = planForTrail(slug);
   const missions = (await listMissions(user.id)).filter((m) => m.trail_slug === slug);
   const lessons = trail.courses.reduce((s, c) => s + c.lessons, 0);
   const done = trail.courses.reduce((s, c) => s + c.done, 0);
-  const guideOpen = plan === "premium";
+  const guideOpen = canAccessTrail(access, slug);
 
   return (
     <>
@@ -85,8 +87,8 @@ export default async function TrailPage({ params }: { params: Promise<{ slug: st
               <Download size={15} /> Baixar PDF
             </a>
           ) : (
-            <Link href="/planos" className="btn">
-              <Lock size={14} /> Disponível no Premium
+            <Link href={`/planos#plano-${unlock?.id ?? "completo"}`} className="btn">
+              <Lock size={14} /> Disponível no {planLabel(slug)}
             </Link>
           )}
         </div>
@@ -104,7 +106,7 @@ export default async function TrailPage({ params }: { params: Promise<{ slug: st
                 <div className="row between">
                   <span className="small muted">{c.lessons} aulas</span>
                   {c.is_premium ? (
-                    <span className={`badge ${plan === "premium" ? "badge-accent" : "badge-warning"}`}>Premium</span>
+                    <span className={`badge ${guideOpen ? "badge-accent" : "badge-warning"}`}>{planLabel(slug)}</span>
                   ) : (
                     <span className="badge badge-success">Gratuito</span>
                   )}
@@ -132,7 +134,7 @@ export default async function TrailPage({ params }: { params: Promise<{ slug: st
                 <span style={{ flex: 1 }}>{m.title}</span>
                 {m.status === "concluida" ? (
                   <span className="badge badge-success">Concluída</span>
-                ) : m.is_premium && plan === "free" ? (
+                ) : !canAccessPremium(access, m.is_premium, slug) ? (
                   <Lock size={14} color="var(--text-faint)" />
                 ) : null}
               </Link>

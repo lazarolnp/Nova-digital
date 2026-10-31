@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bell, Crown } from "lucide-react";
 import { requireOnboardedUser } from "@/lib/auth";
-import { planOf } from "@/lib/access";
+import { accessOf } from "@/lib/access";
 import { unreadCount } from "@/lib/progress";
 import { Sidebar } from "@/components/Sidebar";
 import { AI_ENABLED } from "@/lib/features";
@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireOnboardedUser();
-  const plan = await planOf(user);
+  const access = await accessOf(user);
   const unread = await unreadCount(user.id);
   return (
     <div className="shell">
@@ -17,10 +17,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="main">
         <header className="topbar">
           <div className="row">
-            {plan === "premium" ? (
+            {access.admin ? (
               <span className="badge badge-accent">
-                <Crown size={12} /> Premium
+                <Crown size={12} /> Acesso total
               </span>
+            ) : access.plans.length ? (
+              <Link href="/conta" className="badge badge-accent">
+                <Crown size={12} /> {access.plans.length === 1 ? `Plano ${access.plans[0].name}` : `${access.plans.length} planos`}
+              </Link>
             ) : (
               <Link href="/planos" className="badge">
                 Plano gratuito

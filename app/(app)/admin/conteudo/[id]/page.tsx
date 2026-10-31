@@ -131,7 +131,7 @@ export default async function AdminCourse({ params, searchParams }: { params: Pr
               <input id="sort" name="sort" type="number" className="input" defaultValue={c.sort} />
             </div>
             <label className="check">
-              <input type="checkbox" name="is_premium" defaultChecked={c.is_premium === 1} /> <span>Premium</span>
+              <input type="checkbox" name="is_premium" defaultChecked={c.is_premium === 1} /> <span>Pago (liberado pelo plano da trilha)</span>
             </label>
             <label className="check">
               <input type="checkbox" name="published" defaultChecked={c.published === 1} /> <span>Publicado</span>

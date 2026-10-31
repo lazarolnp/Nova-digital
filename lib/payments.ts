@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
-import { get, parseJson, run } from "./db";
+import { all, get, parseJson, run } from "./db";
+import { paidPlan } from "./plans";
 import { getSetting } from "./access";
 import { notify } from "./progress";
 
@@ -69,17 +70,27 @@ export async function applyKiwifyEvent(body: Obj): Promise<string> {
   else {
     const mappings = await productMappings();
     const match = mappings.find((m) => p.productRefs.includes(m.ref));
-    // Sem nenhum produto mapeado, qualquer produto da conta libera o plano Premium (configuração simples).
-    const plan = match?.plan ?? (mappings.length === 0 ? "premium" : null);
+    // Cada produto da Kiwify precisa estar vinculado a um plano. Para eventos de uma assinatura já
+    // registrada (renovação, cancelamento, reembolso), vale o plano gravado nela.
+    const existing = await get<{ plan: string }>("SELECT plan FROM external_subscriptions WHERE provider = 'kiwify' AND ref = ?", ref);
+    const plan = match?.plan ?? existing?.plan ?? null;
+    const planName = plan ? (paidPlan(plan)?.name ?? plan) : "";
 
     if (!plan) {
-      result = `Ignorado: produto não mapeado (${p.productRefs.join(", ") || "sem ID"}).`;
+      result = `Ignorado: produto não vinculado a nenhum plano (${p.productRefs.join(", ") || "sem ID"}${p.productName ? ` · ${p.productName}` : ""}).`;
+      if (GRANT_EVENTS.has(p.event) && p.orderStatus === "paid") {
+        // Avisa os administradores: há um comprador esperando acesso.
+        const admins = await all<{ id: number }>("SELECT id FROM users WHERE role = 'admin'");
+        for (const a of admins) {
+          await notify(a.id, "sistema", "Venda sem plano vinculado", `${p.email} comprou "${p.productName || p.productRefs[0] || "produto"}". Vincule o produto a um plano em Admin → Pagamentos e libere o acesso em Admin → Usuários.`, "/admin/pagamentos");
+        }
+      }
     } else if (GRANT_EVENTS.has(p.event) && p.orderStatus === "paid") {
       await upsert(ref, p.email, plan, "active", p.accessUntil);
-      result = `Acesso liberado (${plan})${p.accessUntil ? ` até ${p.accessUntil.slice(0, 10)}` : ""}.`;
+      result = `Acesso liberado: plano ${planName}${p.accessUntil ? ` até ${p.accessUntil.slice(0, 10)}` : ""}.`;
       const user = await get<{ id: number }>("SELECT id FROM users WHERE email = ?", p.email);
       if (user && p.event === "order_approved") {
-        await notify(user.id, "sistema", "Seu acesso Premium foi liberado", "Pagamento confirmado. Refaça seu plano para incluir o conteúdo premium.", "/onboarding");
+        await notify(user.id, "sistema", `Plano ${planName} liberado`, "Pagamento confirmado. Refaça seu plano de 30 dias para incluir o novo conteúdo.", "/onboarding");
       }
     } else if (REVOKE_EVENTS.has(p.event)) {
       await upsert(ref, p.email, plan, "revoked", new Date().toISOString());

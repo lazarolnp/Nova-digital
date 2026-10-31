@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { requireAdmin } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { productMappings } from "@/lib/payments";
+import { PAID_PLANS, paidPlan } from "@/lib/plans";
 import { addProductMappingAction, removeProductMappingAction } from "@/app/actions/admin";
 import { AdminHeader, type Flash } from "@/components/AdminUI";
 
@@ -24,8 +25,8 @@ export default async function AdminPayments({ searchParams }: { searchParams: Fl
   const events = await all<{ id: number; event_type: string; email: string; product_ref: string; result: string; raw: string; created_at: string }>(
     "SELECT id, event_type, email, product_ref, result, raw, created_at FROM payment_events ORDER BY id DESC LIMIT 50",
   );
-  const subs = await all<{ email: string; status: string; access_until: string | null; updated_at: string }>(
-    "SELECT email, status, access_until, updated_at FROM external_subscriptions ORDER BY updated_at DESC LIMIT 50",
+  const subs = await all<{ email: string; plan: string; status: string; access_until: string | null; updated_at: string }>(
+    "SELECT email, plan, status, access_until, updated_at FROM external_subscriptions ORDER BY updated_at DESC LIMIT 50",
   );
 
   return (
@@ -51,18 +52,17 @@ export default async function AdminPayments({ searchParams }: { searchParams: Fl
       </section>
 
       <section className="card stack">
-        <h2 className="card-title">2. Produtos que liberam o Premium</h2>
+        <h2 className="card-title">2. Qual plano cada produto libera</h2>
         <p className="small muted">
-          {mappings.length === 0
-            ? "Nenhum produto cadastrado: qualquer compra aprovada da sua conta Kiwify libera o Premium. Cadastre IDs se você vende outros produtos que não devem liberar acesso."
-            : "Somente compras destes produtos ou planos liberam o Premium. O ID aparece na Kiwify e também no registro de eventos abaixo."}
+          Cadastre o ID de cada produto da Kiwify e escolha o plano que ele libera. Compras de produtos não cadastrados não liberam acesso e geram um aviso
+          para os administradores. O ID aparece na Kiwify e também no registro de eventos abaixo (use o botão Testar webhook).
         </p>
         {mappings.map((m) => (
           <div key={m.ref} className="list-item">
             <span style={{ flex: 1 }}>
               <strong>{m.label}</strong> <span className="tiny faint">{m.ref}</span>
             </span>
-            <span className="badge badge-accent">Premium</span>
+            <span className="badge badge-accent">{paidPlan(m.plan)?.name ?? m.plan}</span>
             <form action={removeProductMappingAction.bind(null, m.ref)}>
               <button type="submit" className="btn btn-sm btn-danger">
                 Remover
@@ -72,7 +72,17 @@ export default async function AdminPayments({ searchParams }: { searchParams: Fl
         ))}
         <form action={addProductMappingAction} className="row">
           <input name="ref" className="input" placeholder="ID do produto ou plano na Kiwify" aria-label="ID do produto" style={{ flex: "1 1 220px" }} required />
-          <input name="label" className="input" placeholder="Nome (ex.: Plano Completo mensal)" aria-label="Nome do produto" style={{ flex: "1 1 220px" }} />
+          <input name="label" className="input" placeholder="Nome (ex.: NovaDigital Afiliados)" aria-label="Nome do produto" style={{ flex: "1 1 200px" }} />
+          <select name="plan" className="select" aria-label="Plano liberado" style={{ flex: "0 1 200px" }} defaultValue="">
+            <option value="" disabled>
+              Plano que libera
+            </option>
+            {PAID_PLANS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
           <button type="submit" className="btn">
             Adicionar
           </button>
@@ -91,6 +101,7 @@ export default async function AdminPayments({ searchParams }: { searchParams: Fl
               <thead>
                 <tr>
                   <th>E-mail</th>
+                  <th>Plano</th>
                   <th>Status</th>
                   <th>Acesso até</th>
                 </tr>
@@ -99,6 +110,7 @@ export default async function AdminPayments({ searchParams }: { searchParams: Fl
                 {subs.map((s) => (
                   <tr key={s.email + s.updated_at}>
                     <td className="wrap-anywhere">{s.email}</td>
+                    <td className="small">{paidPlan(s.plan)?.name ?? s.plan}</td>
                     <td>
                       <span className={`badge ${s.status === "active" ? "badge-success" : s.status === "canceled" ? "badge-warning" : "badge-danger"}`}>
                         {s.status === "active" ? "Ativa" : s.status === "canceled" ? "Cancelada" : "Removida"}

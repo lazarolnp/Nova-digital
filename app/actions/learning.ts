@@ -4,15 +4,15 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { get, run } from "@/lib/db";
 import { requireOnboardedUser } from "@/lib/auth";
-import { canAccessLesson, canAccessPremium, planOf } from "@/lib/access";
+import { accessOf, canAccessLesson, canAccessPremium } from "@/lib/access";
 import { XP, awardXp, checkAchievements, revokeXp } from "@/lib/progress";
 import { syncPlanItem } from "@/lib/plan";
 import { firstError, str, urlSchema, type FormState } from "@/lib/validation";
 
 async function lessonAccess(lessonId: number) {
-  return await get<{ course_premium: number; is_free_preview: number; course_slug: string }>(
-    `SELECT c.is_premium AS course_premium, l.is_free_preview, c.slug AS course_slug
-     FROM lessons l JOIN modules m ON m.id = l.module_id JOIN courses c ON c.id = m.course_id
+  return await get<{ course_premium: number; is_free_preview: number; course_slug: string; trail: string | null }>(
+    `SELECT c.is_premium AS course_premium, l.is_free_preview, c.slug AS course_slug, t.slug AS trail
+     FROM lessons l JOIN modules m ON m.id = l.module_id JOIN courses c ON c.id = m.course_id LEFT JOIN trails t ON t.id = c.trail_id
      WHERE l.id = ? AND c.published = 1`,
     lessonId,
   );
@@ -21,7 +21,7 @@ async function lessonAccess(lessonId: number) {
 export async function setLessonCompleteAction(lessonId: number, done: boolean) {
   const user = await requireOnboardedUser();
   const lesson = await lessonAccess(lessonId);
-  if (!lesson || !canAccessLesson(await planOf(user), lesson.course_premium, lesson.is_free_preview)) {
+  if (!lesson || !canAccessLesson(await accessOf(user), lesson.trail, lesson.course_premium, lesson.is_free_preview)) {
     return { error: "Você não tem acesso a esta aula." };
   }
   await run(
@@ -41,7 +41,7 @@ export async function setLessonCompleteAction(lessonId: number, done: boolean) {
 export async function saveLessonNotesAction(lessonId: number, _prev: FormState, fd: FormData): Promise<FormState> {
   const user = await requireOnboardedUser();
   const lesson = await lessonAccess(lessonId);
-  if (!lesson || !canAccessLesson(await planOf(user), lesson.course_premium, lesson.is_free_preview)) return { error: "Sem acesso a esta aula." };
+  if (!lesson || !canAccessLesson(await accessOf(user), lesson.trail, lesson.course_premium, lesson.is_free_preview)) return { error: "Sem acesso a esta aula." };
   const notes = str(fd, "notes");
   if (notes.length > 10000) return { error: "A resposta pode ter no máximo 10.000 caracteres." };
   await run(
@@ -55,12 +55,12 @@ export async function saveLessonNotesAction(lessonId: number, _prev: FormState, 
 }
 
 // ---- Missões ----
-type MissionAccess = { id: number; slug: string; is_premium: number; checklist: string; criteria: string; xp: number };
+type MissionAccess = { id: number; slug: string; is_premium: number; checklist: string; criteria: string; xp: number; trail: string | null };
 
 async function missionFor(missionId: number) {
   const user = await requireOnboardedUser();
-  const m = await get<MissionAccess>("SELECT id, slug, is_premium, checklist, criteria, xp FROM missions WHERE id = ? AND published = 1", missionId);
-  if (!m || !canAccessPremium(await planOf(user), m.is_premium)) return { user, mission: null };
+  const m = await get<MissionAccess>("SELECT m.id, m.slug, m.is_premium, m.checklist, m.criteria, m.xp, t.slug AS trail FROM missions m LEFT JOIN trails t ON t.id = m.trail_id WHERE m.id = ? AND m.published = 1", missionId);
+  if (!m || !canAccessPremium(await accessOf(user), m.is_premium, m.trail)) return { user, mission: null };
   return { user, mission: m };
 }
 

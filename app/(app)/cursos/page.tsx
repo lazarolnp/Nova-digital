@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Clock, Lock } from "lucide-react";
 import { requireOnboardedUser } from "@/lib/auth";
 import { listCourses } from "@/lib/content";
-import { planOf } from "@/lib/access";
+import { accessOf, canAccessTrail } from "@/lib/access";
+import { planLabel } from "@/lib/plans";
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/Progress";
 
@@ -11,7 +12,7 @@ export const metadata: Metadata = { title: "Cursos" };
 
 export default async function CoursesPage({ searchParams }: { searchParams: Promise<{ filtro?: string }> }) {
   const user = await requireOnboardedUser();
-  const plan = await planOf(user);
+  const access = await accessOf(user);
   const { filtro } = await searchParams;
   const all = await listCourses(user.id);
   const courses = all.filter((c) =>
@@ -25,7 +26,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
   ];
   return (
     <>
-      <PageHeader title="Catálogo de cursos" subtitle="Cursos gratuitos e premium. Todo curso premium tem aulas introdutórias abertas." />
+      <PageHeader title="Catálogo de cursos" subtitle="Cada curso pertence a uma trilha e é liberado pelo plano dela ou pelo Completo. Todo curso pago tem aulas introdutórias abertas." />
       <div className="row" role="tablist" aria-label="Filtrar cursos">
         {filters.map((f) => (
           <Link key={f.label} href={f.key ? `/cursos?filtro=${f.key}` : "/cursos"} className={`chip${filtro === f.key ? " active" : ""}`} role="tab" aria-selected={filtro === f.key}>
@@ -44,8 +45,8 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
                 <div className="row between">
                   <span className="label">{c.trail_title}</span>
                   {c.is_premium ? (
-                    <span className={`badge ${plan === "premium" ? "badge-accent" : "badge-warning"}`}>
-                      {plan === "premium" ? "Premium" : <><Lock size={11} /> Premium</>}
+                    <span className={`badge ${canAccessTrail(access, c.trail_slug) ? "badge-accent" : "badge-warning"}`}>
+                      {canAccessTrail(access, c.trail_slug) ? planLabel(c.trail_slug) : <><Lock size={11} /> {planLabel(c.trail_slug)}</>}
                     </span>
                   ) : (
                     <span className="badge badge-success">Gratuito</span>

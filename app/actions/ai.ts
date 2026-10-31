@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { batch, get, parseJson, run } from "@/lib/db";
 import { requireOnboardedUser, requireUser } from "@/lib/auth";
-import { canAccessPremium, consumeAiQuota, limit, planOf, refundAiQuota } from "@/lib/access";
+import { accessOf, canAccessPremium, consumeAiQuota, limit, planOf, refundAiQuota } from "@/lib/access";
 import { aiConfigured, friendlyAiError, missionFeedback, userContext } from "@/lib/ai";
 
 export async function requestMissionFeedbackAction(missionId: number): Promise<{ error?: string; ok?: boolean }> {
@@ -14,7 +14,7 @@ export async function requestMissionFeedbackAction(missionId: number): Promise<{
     "SELECT m.slug, m.title, m.objective, m.criteria, m.is_premium, t.slug AS trail FROM missions m LEFT JOIN trails t ON t.id = m.trail_id WHERE m.id = ? AND m.published = 1",
     missionId,
   );
-  if (!mission || !canAccessPremium(plan, mission.is_premium)) return { error: "Missão indisponível." };
+  if (!mission || !canAccessPremium(await accessOf(user), mission.is_premium, mission.trail)) return { error: "Missão indisponível." };
   const progress = await get<{ result_text: string; result_url: string }>(
     "SELECT result_text, result_url FROM mission_progress WHERE user_id = ? AND mission_id = ?",
     user.id,

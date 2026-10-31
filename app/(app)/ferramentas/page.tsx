@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireOnboardedUser } from "@/lib/auth";
 import { listTools } from "@/lib/content";
-import { canAccessPremium, planOf } from "@/lib/access";
+import { accessOf, canAccessPremium } from "@/lib/access";
 import { PageHeader } from "@/components/PageHeader";
 import { ToolsBrowser, type ToolView } from "@/components/ToolsBrowser";
 
@@ -23,9 +23,9 @@ const ORDER = [
 
 export default async function ToolsPage() {
   const user = await requireOnboardedUser();
-  const plan = await planOf(user);
+  const access = await accessOf(user);
   const tools: ToolView[] = (await listTools()).map((t) => {
-    const locked = !canAccessPremium(plan, t.is_premium);
+    const locked = !canAccessPremium(access, t.is_premium);
     return {
       id: t.id,
       name: t.name,

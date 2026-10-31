@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { CheckCircle2, Circle, Lock, PlayCircle, Target } from "lucide-react";
 import { requireOnboardedUser } from "@/lib/auth";
 import { getCourse } from "@/lib/content";
-import { canAccessLesson, planOf } from "@/lib/access";
+import { accessOf, canAccessLesson, canAccessPremium } from "@/lib/access";
+import { planForTrail, planLabel } from "@/lib/plans";
 import { Progress } from "@/components/Progress";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -19,12 +20,14 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   const data = await getCourse(slug, user.id);
   if (!data) notFound();
   const { course, modules, lessons, missions } = data;
-  const plan = await planOf(user);
+  const access = await accessOf(user);
+  const label = planLabel(course.trail_slug);
+  const unlock = planForTrail(course.trail_slug);
   const done = lessons.filter((l) => l.completed).length;
   const pct = lessons.length ? (done / lessons.length) * 100 : 0;
-  const nextLesson = lessons.find((l) => !l.completed && canAccessLesson(plan, course.is_premium, l.is_free_preview));
+  const nextLesson = lessons.find((l) => !l.completed && canAccessLesson(access, course.trail_slug, course.is_premium, l.is_free_preview));
   const minutes = lessons.reduce((s, l) => s + l.duration_min, 0);
-  const lockedCount = lessons.filter((l) => !canAccessLesson(plan, course.is_premium, l.is_free_preview)).length;
+  const lockedCount = lessons.filter((l) => !canAccessLesson(access, course.trail_slug, course.is_premium, l.is_free_preview)).length;
 
   return (
     <>
@@ -34,7 +37,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
         </Link>
         <div className="row">
           {course.trail_title ? <span className="label">{course.trail_title}</span> : null}
-          {course.is_premium ? <span className="badge badge-accent">Premium</span> : <span className="badge badge-success">Gratuito</span>}
+          {course.is_premium ? <span className="badge badge-accent">{label}</span> : <span className="badge badge-success">Gratuito</span>}
         </div>
         <h1 className="page-title">{course.title}</h1>
         <p className="page-subtitle" style={{ maxWidth: 760 }}>
@@ -56,7 +59,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
               </div>
               <div className="list">
                 {m.lessons.map((l, li) => {
-                  const open = canAccessLesson(plan, course.is_premium, l.is_free_preview);
+                  const open = canAccessLesson(access, course.trail_slug, course.is_premium, l.is_free_preview);
                   return (
                     <Link key={l.id} href={`/aulas/${l.id}`} className="list-item">
                       {l.completed ? (
@@ -74,7 +77,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                           {l.duration_min} min{course.is_premium && l.is_free_preview ? " · aula aberta" : ""}
                         </div>
                       </div>
-                      {!open ? <span className="badge badge-warning">Premium</span> : null}
+                      {!open ? <span className="badge badge-warning">{label}</span> : null}
                     </Link>
                   );
                 })}
@@ -95,8 +98,8 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                 <PlayCircle size={16} /> {done ? "Continuar" : "Começar"}: {nextLesson.title}
               </Link>
             ) : lockedCount ? (
-              <Link href="/planos" className="btn btn-primary btn-block">
-                <Lock size={16} /> Liberar {lockedCount} aulas no Premium
+              <Link href={`/planos#plano-${unlock?.id ?? "completo"}`} className="btn btn-primary btn-block">
+                <Lock size={16} /> Liberar {lockedCount} aulas no {label}
               </Link>
             ) : (
               <span className="badge badge-success">Curso concluído</span>
@@ -122,7 +125,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                     <span className="small" style={{ flex: 1 }}>
                       {m.title}
                     </span>
-                    {m.is_premium && plan === "free" ? <Lock size={14} color="var(--text-faint)" /> : null}
+                    {!canAccessPremium(access, m.is_premium, course.trail_slug) ? <Lock size={14} color="var(--text-faint)" /> : null}
                   </Link>
                 ))}
               </div>

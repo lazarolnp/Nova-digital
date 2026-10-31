@@ -1,6 +1,8 @@
 import "server-only";
 import { all, get, run } from "./db";
+import { cache } from "react";
 import type { User } from "./auth";
+import { PAID_PLANS, paidPlan } from "./plans";
 
 export type PlanId = "free" | "premium";
 
@@ -16,43 +18,61 @@ export async function allSettings(): Promise<Record<string, string>> {
   return Object.fromEntries((await all<{ key: string; value: string }>("SELECT key, value FROM settings")).map((r) => [r.key, r.value]));
 }
 
-export type Subscription = {
-  id: number;
-  plan: string;
-  status: string;
-  provider: string;
-  current_period_end: string | null;
+export type ActivePlan = { id: string; name: string; until: string | null; source: "manual" | "kiwify" };
+
+export type Access = {
+  /** "premium" quando há qualquer plano pago (usado nos limites gerais). */
+  tier: PlanId;
+  admin: boolean;
+  plans: ActivePlan[];
+  trails: Set<string>;
 };
 
-export async function activeSubscription(userId: number): Promise<Subscription | undefined> {
-  return await get<Subscription>(
-    `SELECT id, plan, status, provider, current_period_end FROM subscriptions
-     WHERE user_id = ? AND status = 'active' AND (current_period_end IS NULL OR current_period_end > ?)
-     ORDER BY id DESC LIMIT 1`,
-    userId,
-    new Date().toISOString(),
-  );
-}
-
-/** Assinatura válida vinda de uma plataforma de pagamento (Kiwify), pelo e-mail do comprador. */
-export async function activeExternalSubscription(email: string) {
+/** Planos ativos do usuário: concedidos manualmente no admin ou comprados na Kiwify (pelo e-mail). */
+async function activePlans(userId: number, email: string): Promise<ActivePlan[]> {
   const now = new Date().toISOString();
-  return get<{ plan: string; status: string; access_until: string | null }>(
-    `SELECT plan, status, access_until FROM external_subscriptions WHERE email = ? AND (
+  const manual = await all<{ plan: string; current_period_end: string | null }>(
+    `SELECT plan, current_period_end FROM subscriptions
+     WHERE user_id = ? AND status = 'active' AND (current_period_end IS NULL OR current_period_end > ?)`,
+    userId,
+    now,
+  );
+  const kiwify = await all<{ plan: string; access_until: string | null }>(
+    `SELECT plan, access_until FROM external_subscriptions WHERE email = ? AND (
        (status = 'active' AND (access_until IS NULL OR access_until > ?)) OR
-       (status = 'canceled' AND access_until > ?))
-     ORDER BY access_until IS NULL DESC, access_until DESC LIMIT 1`,
+       (status = 'canceled' AND access_until > ?))`,
     email,
     now,
     now,
   );
+  const out: ActivePlan[] = [];
+  const add = (planId: string, until: string | null, source: ActivePlan["source"]) => {
+    const p = paidPlan(planId);
+    if (!p) return;
+    const existing = out.find((x) => x.id === p.id);
+    if (!existing) out.push({ id: p.id, name: p.name, until, source });
+    else if (existing.until && (!until || until > existing.until)) existing.until = until;
+  };
+  manual.forEach((m) => add(m.plan, m.current_period_end, "manual"));
+  kiwify.forEach((k) => add(k.plan, k.access_until, "kiwify"));
+  return out;
 }
 
-/** Plano efetivo do usuário. Administradores têm acesso completo para revisar conteúdo. */
+const accessCached = cache(async (userId: number, role: string, email: string): Promise<Access> => {
+  const plans = await activePlans(userId, email);
+  const admin = role === "admin";
+  const trails = new Set<string>(admin ? PAID_PLANS.flatMap((p) => p.trails) : plans.flatMap((p) => paidPlan(p.id)?.trails ?? []));
+  return { tier: admin || plans.length ? "premium" : "free", admin, plans, trails };
+});
+
+/** O que o usuário pode acessar. Administradores acessam tudo para revisar o conteúdo. */
+export function accessOf(user: Pick<User, "id" | "role" | "email">): Promise<Access> {
+  return accessCached(user.id, user.role, user.email);
+}
+
+/** "premium" se o usuário tem qualquer plano pago (usado para limites gerais e textos). */
 export async function planOf(user: Pick<User, "id" | "role" | "email">): Promise<PlanId> {
-  if (user.role === "admin") return "premium";
-  if (await activeSubscription(user.id)) return "premium";
-  return (await activeExternalSubscription(user.email)) ? "premium" : "free";
+  return (await accessOf(user)).tier;
 }
 
 export async function limit(plan: PlanId, name: "ai_messages_per_day" | "max_projects"): Promise<number> {
@@ -61,12 +81,18 @@ export async function limit(plan: PlanId, name: "ai_messages_per_day" | "max_pro
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
-export function canAccessPremium(plan: PlanId, isPremiumContent: boolean | number) {
-  return !isPremiumContent || plan === "premium";
+/** Acesso a uma trilha. Conteúdo sem trilha (ex.: ferramentas premium) exige qualquer plano pago. */
+export function canAccessTrail(access: Access, trailSlug: string | null) {
+  if (access.admin) return true;
+  return trailSlug ? access.trails.has(trailSlug) : access.tier === "premium";
 }
 
-export function canAccessLesson(plan: PlanId, coursePremium: number, lessonPreview: number) {
-  return plan === "premium" || !coursePremium || lessonPreview === 1;
+export function canAccessPremium(access: Access, isPremiumContent: boolean | number, trailSlug: string | null = null) {
+  return !isPremiumContent || canAccessTrail(access, trailSlug);
+}
+
+export function canAccessLesson(access: Access, trailSlug: string | null, coursePremium: number, lessonPreview: number) {
+  return !coursePremium || lessonPreview === 1 || canAccessTrail(access, trailSlug);
 }
 
 // ---- Uso diário do assistente ----

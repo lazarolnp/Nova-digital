@@ -5,7 +5,8 @@ import { ChevronLeft, ChevronRight, ExternalLink, Lock, PenLine } from "lucide-r
 import { requireOnboardedUser } from "@/lib/auth";
 import { get } from "@/lib/db";
 import { getLesson, lessonNeighbors } from "@/lib/content";
-import { canAccessLesson, planOf } from "@/lib/access";
+import { accessOf, canAccessLesson } from "@/lib/access";
+import { planForTrail } from "@/lib/plans";
 import { intParam } from "@/lib/validation";
 import { videoEmbed } from "@/lib/video";
 import { Markdown } from "@/components/Markdown";
@@ -23,8 +24,9 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
   const user = await requireOnboardedUser();
   const lesson = await getLesson(id);
   if (!lesson) notFound();
-  const plan = await planOf(user);
-  const allowed = canAccessLesson(plan, lesson.course_premium, lesson.is_free_preview);
+  const access = await accessOf(user);
+  const allowed = canAccessLesson(access, lesson.trail_slug, lesson.course_premium, lesson.is_free_preview);
+  const unlockPlan = planForTrail(lesson.trail_slug);
   const nav = await lessonNeighbors(lesson.id, lesson.course_id);
   const progress = await get<{ completed_at: string | null; notes: string }>(
     "SELECT completed_at, notes FROM lesson_progress WHERE user_id = ? AND lesson_id = ?",
@@ -48,13 +50,14 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       {!allowed ? (
         <div className="card empty">
           <Lock size={28} />
-          <h2 className="card-title">Esta aula faz parte do Premium</h2>
+          <h2 className="card-title">Esta aula faz parte do plano {unlockPlan?.name ?? "Completo"}</h2>
           <p className="muted" style={{ maxWidth: 520 }}>
-            As aulas introdutórias deste curso estão abertas no plano gratuito. Para acessar o curso completo, conheça o plano Premium.
+            As aulas introdutórias deste curso estão abertas no plano gratuito. Para acessar o curso inteiro, assine o plano{" "}
+            {unlockPlan ? `${unlockPlan.name} ou o Completo` : "Completo"}.
           </p>
           <div className="row">
-            <Link href="/planos" className="btn btn-primary">
-              Conhecer o Premium
+            <Link href={`/planos#plano-${unlockPlan?.id ?? "completo"}`} className="btn btn-primary">
+              Ver planos
             </Link>
             <Link href={`/cursos/${lesson.course_slug}`} className="btn">
               Ver aulas abertas
