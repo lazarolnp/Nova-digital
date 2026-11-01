@@ -71,7 +71,14 @@ export const getUser = cache(async (): Promise<User | null> => {
     hashToken(token),
     new Date().toISOString(),
   );
-  return user ?? null;
+  if (!user) return null;
+  // O e-mail definido em ADMIN_EMAIL é sempre administrador (vale também para contas criadas antes da variável).
+  const adminEmail = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+  if (adminEmail && user.role !== "admin" && user.email.toLowerCase() === adminEmail) {
+    await run("UPDATE users SET role = 'admin' WHERE id = ?", user.id);
+    user.role = "admin";
+  }
+  return user;
 });
 
 export async function requireUser(): Promise<User> {
