@@ -78,6 +78,9 @@ export async function loginAction(_prev: FormState, fd: FormData): Promise<FormS
     return { error: "E-mail ou senha incorretos." };
   }
   await clearAttempts(key);
+  // O e-mail definido em ADMIN_EMAIL vira administrador também ao entrar (útil se a conta já existia).
+  const adminEmail = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+  if (adminEmail && adminEmail === email) await run("UPDATE users SET role = 'admin' WHERE id = ?", user.id);
   await createSession(user.id);
   const next = str(fd, "next");
   redirect(user.onboarded ? (next.startsWith("/") && !next.startsWith("//") ? next : "/painel") : "/onboarding");
